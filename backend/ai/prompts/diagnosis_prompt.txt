@@ -1,0 +1,1 @@
+Provide diagnosis based on symptoms and context.

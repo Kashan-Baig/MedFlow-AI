@@ -1,0 +1,64 @@
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyc
+
+# Virtual Environment
+venv/
+env/
+.env/
+
+# =========================
+# Environment Variables
+# =========================
+.env
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS Files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# Vector DB / RAG Indexes
+# =========================
+vector_db/
+faiss_index/
+chroma/
+*.faiss
+*.pkl
+
+# =========================
+# HuggingFace / Model Cache
+# =========================
+.cache/
+huggingface/
+transformers_cache/
+
+# =========================
+# Jupyter (if used)
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# Build / Distribution
+# =========================
+dist/
+build/
+*.egg-info/

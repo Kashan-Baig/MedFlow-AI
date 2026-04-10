@@ -1,32 +1,12 @@
-fastapi==0.115.0
-uvicorn==0.41.0
-
-python-dotenv==1.2.1
-requests==2.32.5
-
-pydantic==2.12.5
+requests==2.32.3
 PyPDF2==3.0.1
+python-dotenv==1.2.1
 
-numpy==2.2.6
-pandas==2.3.3
+# RAG / embeddings / retrieval
+faiss-cpu==1.8.0.post1
+sentence-transformers==2.7.0
 
-langchain-community
-langchain-text-splitters
-langchain-huggingface
-langchain-groq
-
-chromadb==1.5.1
-
-sentence-transformers==5.2.2
-transformers==4.57.6
-torch==2.10.0
-tokenizers==0.22.2
-
-huggingface-hub==0.36.0
-
-scikit-learn==1.7.2
-scipy==1.15.3
-nltk==3.9.2
-
-tqdm==4.67.1
-watchfiles==1.1.1
+# LangChain (pinned to support `from langchain.vectorstores import FAISS`, etc.)
+langchain==0.1.16
+langchain-community==0.0.32
+langchain-groq==0.1.4

@@ -1,0 +1,101 @@
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, List ,Any, Generic, TypeVar
+from datetime import date, time
+from decimal import Decimal
+from database.models import UserRole, AppointmentStatus, CaseType, BloodGroup
+
+# This allows 'data' to be any model (UserOut, PatientOut, etc.)
+T = TypeVar("T")
+
+class GenericResponse(BaseModel, Generic[T]):
+    status_code: int
+    message: str
+    data: Optional[T] = None
+
+
+# --- AUTH & USER SCHEMAS ---
+class UserBase(BaseModel):
+    email: EmailStr
+
+class UserCreate(UserBase):
+    password: str
+    role: UserRole = UserRole.PATIENT
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+    role : UserRole 
+
+class UserOut(UserBase):
+    id: int
+    role: str
+    class Config:
+        from_attributes = True
+
+class LoginResponse(BaseModel):
+    user: UserOut
+    access_token: str
+
+# --- PATIENT & HISTORY ---
+class MedicalHistoryBase(BaseModel):
+    allergies: List[str] = []
+    blood_group: Optional[BloodGroup] = None
+    chronic_conditions: List[str] = []
+    current_medications: List[str] = []
+    last_updated: Optional[date] = None
+
+class PatientBase(BaseModel):
+    full_name: str
+    email: EmailStr
+    contact_number: Optional[str] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    address: Optional[str] = None
+
+class PatientOut(PatientBase):
+    patient_id: int
+    class Config:
+        from_attributes = True
+
+# --- DOCTOR & SLOTS ---
+class DoctorOut(BaseModel):
+    doctor_id: int
+    name: str
+    specialization: Optional[str] = None
+    on_duty_status: bool
+    workload_count: int
+    class Config:
+        from_attributes = True
+
+class ScheduleSlotOut(BaseModel):
+    slot_id: int
+    available_date: date
+    start_time: time
+    end_time: time
+    is_locked: bool
+    class Config:
+        from_attributes = True
+
+# --- PRECHECK & APPOINTMENT ---
+class MedicalPrecheckBase(BaseModel):
+    blood_pressure: Optional[str] = None
+    temperature: Optional[Decimal] = None
+    pulse_rate: Optional[int] = None
+    spo2: Optional[Decimal] = None
+    weight: Optional[Decimal] = None
+    patient_symptoms: List[str] = []
+    ai_predicted_condition: Optional[str] = None
+
+class AppointmentCreate(BaseModel):
+    patient_id: int
+    doctor_id: int
+    slot_id: int
+    case_type: CaseType
+
+class AppointmentOut(BaseModel):
+    appointment_id: int
+    status: AppointmentStatus
+    case_type: CaseType
+    class Config:
+        from_attributes = True
+        

@@ -1,26 +1,33 @@
 """Database connection setup."""
+
 import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 load_dotenv()
 
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
-# The engine handles the actual connection
+# Engine
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
-# Each instance of SessionLocal will be a database session
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Session factory
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
 
 Base = declarative_base()
 
-# Dependency to use in our routes
+
+# =========================
+# FIXED FOR SCRIPTS (IMPORTANT)
+# =========================
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    """
+    Returns a real session (NOT generator).
+    Safe for CLI workflows, scripts, chatbot.
+    """
+    return SessionLocal()

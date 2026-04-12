@@ -1,132 +1,141 @@
 from app.utils.session_store import get_session, update_appointment
 from app.utils.doctor_store import doctors
+from datetime import datetime, timedelta
+import json, re
 
 
-def normalize_day(day):
-    return day.strip().capitalize()
+# =========================
+# UTIL: GET DATE FOR DAY
+# =========================
+def get_next_date_for_day(day_name: str):
+    days_map = {
+        "Monday": 0,
+        "Tuesday": 1,
+        "Wednesday": 2,
+        "Thursday": 3,
+        "Friday": 4,
+        "Saturday": 5,
+        "Sunday": 6
+    }
+
+    today = datetime.now()
+    target_day = days_map[day_name]
+
+    days_ahead = target_day - today.weekday()
+    if days_ahead <= 0:
+        days_ahead += 7
+
+    return (today + timedelta(days=days_ahead)).date()
 
 
-def normalize_time(time_slot):
-    return (
-        time_slot.strip()
-        .replace("AM", " AM")
-        .replace("PM", " PM")
-        .replace("  ", " ")
-    )
+# =========================
+# UTIL: NEXT 7 DAYS
+# =========================
+def get_next_7_days():
+    today = datetime.now()
+    return [(today + timedelta(days=i)).strftime("%A") for i in range(7)]
 
 
+# =========================
+# PARSE INSIGHT SAFELY
+# =========================
+def parse_insight(insight):
+    if isinstance(insight, str):
+        try:
+            match = re.search(r"```(?:json)?\n?(.*?)```", insight, re.DOTALL)
+            raw = match.group(1) if match else insight
+            return json.loads(raw)
+        except:
+            return {}
+    return insight if isinstance(insight, dict) else {}
+
+
+# =========================
+# MAIN BOOKING FUNCTION
+# =========================
 def book_appointment(session_id, insight):
 
     session = get_session(session_id)
-
     if not session:
         return {"error": "Session not found"}
 
-    # =========================
-    # PARSE INSIGHT
-    # =========================
-    if isinstance(insight, str):
-        import json, re
-        try:
-            match = re.search(r"```(?:json)?\n?(.*?)```", insight, flags=re.DOTALL)
-            raw_json = match.group(1).strip() if match else insight.strip()
-            insight = json.loads(raw_json)
-        except Exception:
-            pass
+    insight = parse_insight(insight)
 
-    if isinstance(insight, dict):
-        speciality = (
-            insight.get("recommended_specialist")
-            or insight.get("specialist")
-            or insight.get("diagnosis", {}).get("specialist")
-            or "General Physician"
-        )
-    else:
-        print("⚠️ Insight not structured → using General Physician")
-        speciality = "General Physician"
+    # =========================
+    # EXTRACT SPECIALIST (FIXED)
+    # =========================
+    speciality = (
+        insight.get("primary_specialist")
+        or insight.get("recommended_specialist")
+        or insight.get("specialist")
+        or "General Physician"
+    )
 
     print(f"\n🩺 Recommended Specialist: {speciality}")
 
     # =========================
-    # GET DAY
+    # NEXT 7 DAYS
     # =========================
-    day_input = input("📅 Enter preferred day (e.g., Monday): ")
-    day = normalize_day(day_input)
+    next_days = get_next_7_days()
 
-    # =========================
-    # GET AVAILABLE DOCTORS
-    # =========================
-    available_doctors = [
-        d for d in doctors
-        if any(s.lower() == speciality.lower() for s in d["speciality"])
-        and any(dy.lower() == day.lower() for dy in d["available_days"])
-        ]
+    slot_map = []
+    print("\n📅 Available Slots (Next 7 Days):\n")
 
-    if not available_doctors:
-        return {"error": f"No doctors available for {speciality} on {day}"}
+    count = 1
 
-    # =========================
-    # SHOW TIME SLOTS
-    # =========================
-    print(f"\n⏰ Available time slots on {day}:")
+    for day in next_days:
+        for doc in doctors:
 
-    all_slots = set()
-    for d in available_doctors:
-        for slot in d["time_slots"]:
-            all_slots.add(slot)
+            if any(s.lower() == speciality.lower() for s in doc["speciality"]):
 
-    all_slots = list(all_slots)
+                if day in doc["available_days"]:
 
-    for i, slot in enumerate(all_slots, 1):
-        print(f"{i}. {slot}")
+                    date = get_next_date_for_day(day)
+
+                    for time_slot in doc["time_slots"]:
+                        slot_map.append((doc, day, date, time_slot))
+
+                        print(
+                            f"{count}. {day} ({date}) - {time_slot} ({doc['name']})"
+                        )
+                        count += 1
+
+    if not slot_map:
+        return {"error": f"No slots available for {speciality}"}
 
     # =========================
-    # USER SELECT SLOT
+    # USER SELECTION
     # =========================
-    choice = input("\n👉 Select a slot number: ").strip()
+    choice = input("\n👉 Select slot number: ").strip()
 
-    if not choice.isdigit() or int(choice) < 1 or int(choice) > len(all_slots):
+    if not choice.isdigit() or not (1 <= int(choice) <= len(slot_map)):
         return {"error": "Invalid slot selection"}
 
-    time_slot = all_slots[int(choice) - 1]
+    doctor, day, date, time_slot = slot_map[int(choice) - 1]
 
     # =========================
-    # FIND DOCTOR
+    # CONFIRMATION
     # =========================
-    doctor = None
-    for d in available_doctors:
-        if time_slot in d["time_slots"]:
-            doctor = d
-            break
-
-    if not doctor:
-        return {
-            "error": "No doctor available for selected day and time slot"
-        }
-
-    # =========================
-    # CONFIRM
-    # =========================
-    print("\n👨‍⚕️ Doctor Available:")
-    print(f"Name: {doctor['name']}")
-    print(f"Speciality: {doctor['speciality']}")
+    print("\n👨‍⚕️ Appointment Details:")
+    print(f"Doctor: {doctor['name']}")
+    print(f"Speciality: {speciality}")
     print(f"Day: {day}")
+    print(f"Date: {date}")
     print(f"Time: {time_slot}")
 
-    confirm = input("\n✅ Do you want to confirm this appointment? (yes/no): ").strip().lower()
+    confirm = input("\n✅ Confirm appointment? (yes/no): ").lower()
 
     if confirm not in ["yes", "y"]:
-        return {
-            "error": "Appointment not confirmed by user"
-        }
+        return {"error": "Appointment cancelled"}
 
     # =========================
     # SAVE APPOINTMENT
     # =========================
     appointment_data = {
         "doctor": doctor["name"],
-        "speciality": doctor["speciality"],
+        "speciality": speciality,
         "day": day,
+        "date": str(date),
         "time_slot": time_slot,
         "status": "confirmed"
     }

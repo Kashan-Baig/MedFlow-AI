@@ -64,7 +64,7 @@ def initialize_vectorstore():
 # =========================
 # GET CONTEXT (UPDATED)
 # =========================
-def get_relevant_context(patient: PatientInput) -> str:
+def get_relevant_context(patient: PatientInput) -> dict:
     global vectorstore
 
     if vectorstore is None:
@@ -84,6 +84,9 @@ def get_relevant_context(patient: PatientInput) -> str:
 
     docs = retriever.get_relevant_documents(patient.symptoms)
 
-    context = "\n\n---\n\n".join([d.page_content for d in docs])
+    context_text = "\n\n---\n\n".join([d.page_content for d in docs])
 
-    return context
+    return {
+        "context": context_text,
+        "sources_count": len(docs)
+    }

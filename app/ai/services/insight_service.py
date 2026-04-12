@@ -1,11 +1,9 @@
-# app/ai/services/insight_service.py
-
 import os
+import json
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
-
-from app.ai.services.input_service import PatientInput
 from app.ai.services.rag_service import get_relevant_context
+from app.ai.services.input_service import PatientInput
 
 load_dotenv()
 
@@ -16,17 +14,19 @@ llm = ChatGroq(
 )
 
 
-# ==================================================
-# 1. STRUCTURED OUTPUT (FOR DATABASE)
-# ==================================================
-def generate_insights(patient: PatientInput):
+# =========================
+# STRUCTURED INSIGHT (DB READY)
+# =========================
+def generate_insights(patient):
 
     context = get_relevant_context(patient)
 
     prompt = f"""
 You are a medical AI system.
+Return ONLY ONE primary_specialist
+(no slashes, no multiple values)
 
-Return ONLY valid JSON.
+Return ONLY valid JSON (top 3 diseases max).
 
 PATIENT:
 Name: {patient.name}
@@ -39,8 +39,14 @@ CONTEXT:
 
 JSON FORMAT:
 {{
-  "disease": "",
-  "specialist": "",
+  "possible_diseases": [
+    {{
+      "name": "",
+      "confidence": 0.0
+    }}
+  ],
+  "primary_specialist": "",
+  "alternative_specialists": [],
   "urgency": "low|medium|high|emergency",
   "severity_score": 1-10,
   "recommended_action": ""
@@ -51,39 +57,43 @@ JSON FORMAT:
     return response.content
 
 
-# ==================================================
-# 2. HUMAN RESPONSE (FOR CHATBOT / PATIENT TALK)
-# ==================================================
-def generate_patient_response(patient: PatientInput, structured_data: str):
-
-    context = get_relevant_context(patient)
+# =========================
+# HUMAN RESPONSE (CHATBOT)
+# =========================
+def generate_patient_response(patient: PatientInput, insight_json: str):
 
     prompt = f"""
-You are a professional medical assistant in a hospital AI system.
+You are a friendly medical assistant.
 
-You already analyzed the case.
+Explain the situation to the patient in simple human language.
 
-Now respond to the patient in a clear, calm, human-like way.
-
-IMPORTANT RULES:
-- Do NOT output JSON
-- Be empathetic
-- Do NOT give final diagnosis as certainty
-- Suggest specialist + urgency gently
-- Offer appointment help
+RULES:
+- No JSON
+- Be calm and supportive
+- Suggest next step
+- Do NOT confirm final diagnosis
 
 PATIENT:
-Name: {patient.name}
-Symptoms: {patient.symptoms}
+{patient.symptoms}
 
-AI ANALYSIS (JSON):
-{structured_data}
+AI INSIGHT:
+{insight_json}
 
-MEDICAL CONTEXT:
-{context}
-
-Write a natural conversation response:
+Now respond naturally:
 """
 
     response = llm.invoke(prompt)
     return response.content.strip()
+
+
+# =========================
+# OPTIONAL: SAFE JSON PARSE
+# =========================
+def parse_insight(json_str: str):
+    try:
+        return json.loads(json_str)
+    except:
+        return {
+            "error": "invalid_json",
+            "raw": json_str
+        }

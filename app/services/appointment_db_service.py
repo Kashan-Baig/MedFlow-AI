@@ -4,7 +4,7 @@ from app.database.db_connection import get_db
 
 def create_appointment(patient_id, doctor_id, slot_id):
 
-    db = get_db()   # ✅ FIXED
+    db = get_db()
 
     try:
         query = text("""
@@ -19,7 +19,7 @@ def create_appointment(patient_id, doctor_id, slot_id):
             "doctor_id": doctor_id,
             "slot_id": slot_id,
             "status": "confirmed",
-            "case_type": "CONSULTATION"
+            "case_type": "consultation"
         })
 
         appointment_id = result.fetchone()[0]

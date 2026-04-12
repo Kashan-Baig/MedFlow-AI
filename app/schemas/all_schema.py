@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List ,Any, Generic, TypeVar
 from datetime import date, time
 from decimal import Decimal
-from database.models import UserRole, AppointmentStatus, CaseType, BloodGroup
+from app.database.models import UserRole, AppointmentStatus, CaseType, BloodGroup
 
 # This allows 'data' to be any model (UserOut, PatientOut, etc.)
 T = TypeVar("T")

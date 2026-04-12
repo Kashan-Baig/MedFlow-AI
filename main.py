@@ -1,8 +1,8 @@
 """Entry point for MedFlow AI backend."""
 from fastapi import FastAPI
-from api.routes import patient_routes, admin_routes, doctor_routes, auth
-from database.db_connection import engine
-from database import models
+from app.api.routes import patient_routes, admin_routes, doctor_routes, auth
+from app.database.db_connection import engine
+from app.database import models
 
 models.Base.metadata.create_all(bind=engine)
 

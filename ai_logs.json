@@ -22,5 +22,248 @@
             "symptoms": "breathing difficulty also"
         },
         "insight": "{\n  \"disease\": \"Asthma\",\n  \"specialist\": \"General Physician / Pulmonologist\",\n  \"urgency\": \"low|medium|high|emergency\",\n  \"severity_score\": 7,\n  \"recommended_action\": \"Seek medical attention if symptoms worsen or if breathing difficulty occurs\"\n}"
+    },
+    {
+        "timestamp": "2026-04-12 02:27:11.660467",
+        "session": {
+            "session_id": 1,
+            "user_id": null,
+            "patient_info": {
+                "name": "Saad",
+                "age": "20",
+                "gender": "Male",
+                "email": "hsaadbaig@gmail.com",
+                "phone": "03352136995"
+            },
+            "conversation": [
+                {
+                    "symptoms": "fever,body pain",
+                    "insight": "{\n  \"disease\": \"flu\",\n  \"specialist\": \"general practitioner\",\n  \"urgency\": \"medium\",\n  \"severity_score\": 6,\n  \"recommended_action\": \"rest and hydration\"\n}",
+                    "response": "Hello Saad, I'm glad you came to see us today. I've been going over your symptoms, and I want to assure you that we're here to help. You mentioned you're experiencing fever and body pain. I'm going to do my best to understand what might be going on.\n\nFrom what I've analyzed, it seems like you might be dealing with something that could be related to the flu. However, I want to emphasize that this is just a possibility, and we need to take a closer look to be sure.\n\nIn the meantime, I recommend that you get plenty of rest and stay hydrated. This will help your body fight off whatever might be causing your symptoms.\n\nI think it would be a good idea to speak with a general practitioner to get a more thorough understanding of what's going on. They can take a closer look at your symptoms and run some tests if needed. Would you like me to help you schedule an appointment with one of our doctors? We can get you set up with a time that works for you.\n\nAlso, just to let you know, we have a doctor available to see you today if you'd like to come in right away. It's not an emergency, but it's better to be safe than sorry. What do you think?",
+                    "timestamp": "2026-04-12 02:26:48.480137"
+                }
+            ],
+            "appointment": {
+                "doctor": null,
+                "speciality": null,
+                "day": null,
+                "time_slot": null,
+                "status": null
+            }
+        }
+    },
+    {
+        "timestamp": "2026-04-12 02:35:57.198318",
+        "session": {
+            "session_id": 1,
+            "user_id": null,
+            "patient_info": {
+                "name": "Mohib",
+                "age": "18",
+                "gender": "Male",
+                "email": "mohib12@gmail.com",
+                "phone": "03349294929"
+            },
+            "conversation": [
+                {
+                    "symptoms": "Body pain rashes",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-12 02:33:55.284846"
+                },
+                {
+                    "symptoms": "fever",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-12 02:34:23.387987"
+                },
+                {
+                    "symptoms": "pain behind the eyes",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-12 02:34:55.308028"
+                },
+                {
+                    "symptoms": "body pain",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-12 02:35:31.359605"
+                }
+            ],
+            "appointment": {
+                "doctor": null,
+                "speciality": null,
+                "day": null,
+                "time_slot": null,
+                "status": null
+            }
+        }
+    },
+    {
+        "timestamp": "2026-04-12 02:39:29.789148",
+        "session": {
+            "session_id": 1,
+            "user_id": null,
+            "patient_info": {
+                "name": "Mohib",
+                "age": "19",
+                "gender": "Female",
+                "email": "hs@gmail.com",
+                "phone": "0328482833"
+            },
+            "conversation": [
+                {
+                    "symptoms": "Body pain severe, high fever",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-12 02:37:17.775164"
+                },
+                {
+                    "symptoms": "weakness",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-12 02:37:39.553620"
+                },
+                {
+                    "symptoms": "nausea and vomitting",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-12 02:38:12.122985"
+                },
+                {
+                    "symptoms": "no vomitting but fainting",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-12 02:38:46.129270"
+                }
+            ],
+            "appointment": {
+                "doctor": null,
+                "speciality": null,
+                "day": null,
+                "time_slot": null,
+                "status": null
+            }
+        }
+    },
+    {
+        "timestamp": "2026-04-12 11:25:16.765646",
+        "session": {
+            "session_id": 1,
+            "user_id": null,
+            "patient_info": {
+                "name": "Saad",
+                "age": "20",
+                "gender": "Male",
+                "email": "hsaadbaig@gmail.com",
+                "phone": "03352136995"
+            },
+            "conversation": [
+                {
+                    "symptoms": "Fever, Body pain",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-12 11:24:21.228820"
+                }
+            ],
+            "appointment": {
+                "doctor": null,
+                "speciality": null,
+                "day": null,
+                "time_slot": null,
+                "status": null
+            }
+        }
+    },
+    {
+        "timestamp": "2026-04-12 11:27:43.699423",
+        "session": {
+            "session_id": 1,
+            "user_id": null,
+            "patient_info": {
+                "name": "SaadM",
+                "age": "21",
+                "gender": "Mal",
+                "email": "hsaad@gmail.com",
+                "phone": "03848294123"
+            },
+            "conversation": [
+                {
+                    "symptoms": "fever,body pain",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-12 11:27:28.726065"
+                }
+            ],
+            "appointment": {
+                "doctor": null,
+                "speciality": null,
+                "day": null,
+                "time_slot": null,
+                "status": null
+            }
+        }
+    },
+    {
+        "timestamp": "2026-04-12 11:33:52.478322",
+        "session": {
+            "session_id": 1,
+            "user_id": null,
+            "patient_info": {
+                "name": "Saaddd",
+                "age": "21",
+                "gender": "Male",
+                "email": "hsaad1@gmail.com",
+                "phone": "03123828828"
+            },
+            "conversation": [
+                {
+                    "symptoms": "Body pain, headache",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-12 11:33:33.991325"
+                }
+            ],
+            "appointment": {
+                "doctor": null,
+                "speciality": null,
+                "day": null,
+                "time_slot": null,
+                "status": null
+            }
+        }
+    },
+    {
+        "timestamp": "2026-04-12 11:38:04.057030",
+        "session": {
+            "session_id": 1,
+            "user_id": null,
+            "patient_info": {
+                "name": "Saad",
+                "age": "21",
+                "gender": "Male",
+                "email": "hsaad@rie.com",
+                "phone": "032384220102"
+            },
+            "conversation": [
+                {
+                    "symptoms": "Body pain, fever",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-12 11:37:49.484285"
+                }
+            ],
+            "appointment": {
+                "doctor": "Dr. Kashan",
+                "speciality": [
+                    "Cardiologist",
+                    "General Physician",
+                    "General Practitioner"
+                ],
+                "day": "Monday",
+                "time_slot": "10:00 AM - 11:00 AM",
+                "status": "confirmed"
+            }
+        }
     }
 ]

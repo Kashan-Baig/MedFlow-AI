@@ -2,7 +2,6 @@ import os
 import json
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
-from app.ai.services.rag_service import get_relevant_context
 from app.ai.services.input_service import PatientInput
 
 load_dotenv()
@@ -15,18 +14,22 @@ llm = ChatGroq(
 
 
 # =========================
-# STRUCTURED INSIGHT (DB READY)
+# STRUCTURED INSIGHT (FINAL FIX)
 # =========================
-def generate_insights(patient):
+def generate_insights(patient, context):
 
-    context = get_relevant_context(patient)
+    # ensure context is string
+    if isinstance(context, dict):
+        context = context.get("context", "")
 
     prompt = f"""
 You are a medical AI system.
-Return ONLY ONE primary_specialist
-(no slashes, no multiple values)
 
-Return ONLY valid JSON (top 3 diseases max).
+STRICT RULES:
+- Return ONLY valid JSON
+- Max 3 diseases
+- ONLY ONE primary_specialist (no slashes, no multiple values)
+- Keep response clean (no notes, no explanation)
 
 PATIENT:
 Name: {patient.name}
@@ -54,7 +57,7 @@ JSON FORMAT:
 """
 
     response = llm.invoke(prompt)
-    return response.content
+    return response.content.strip()
 
 
 # =========================
@@ -87,11 +90,14 @@ Now respond naturally:
 
 
 # =========================
-# OPTIONAL: SAFE JSON PARSE
+# SAFE JSON PARSE (IMPORTANT)
 # =========================
 def parse_insight(json_str: str):
     try:
-        return json.loads(json_str)
+        import re
+        match = re.search(r"```(?:json)?\n?(.*?)```", json_str, re.DOTALL)
+        raw = match.group(1) if match else json_str
+        return json.loads(raw)
     except:
         return {
             "error": "invalid_json",

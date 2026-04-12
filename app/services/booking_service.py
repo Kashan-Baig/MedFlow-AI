@@ -3,9 +3,11 @@ from app.utils.doctor_store import doctors
 from datetime import datetime, timedelta
 import json, re
 
+from app.services.appointment_db_service import create_appointment
+
 
 # =========================
-# UTIL: GET DATE FOR DAY
+# UTIL: DATE FROM DAY
 # =========================
 def get_next_date_for_day(day_name: str):
     days_map = {
@@ -37,7 +39,7 @@ def get_next_7_days():
 
 
 # =========================
-# PARSE INSIGHT SAFELY
+# PARSE INSIGHT
 # =========================
 def parse_insight(insight):
     if isinstance(insight, str):
@@ -51,6 +53,15 @@ def parse_insight(insight):
 
 
 # =========================
+# NORMALIZE SPECIALITY
+# =========================
+def normalize_speciality(text):
+    if not text:
+        return "General Physician"
+    return text.split("/")[0].strip()  # take first part only
+
+
+# =========================
 # MAIN BOOKING FUNCTION
 # =========================
 def book_appointment(session_id, insight):
@@ -61,10 +72,7 @@ def book_appointment(session_id, insight):
 
     insight = parse_insight(insight)
 
-    # =========================
-    # EXTRACT SPECIALIST (FIXED)
-    # =========================
-    speciality = (
+    speciality = normalize_speciality(
         insight.get("primary_specialist")
         or insight.get("recommended_specialist")
         or insight.get("specialist")
@@ -73,9 +81,6 @@ def book_appointment(session_id, insight):
 
     print(f"\n🩺 Recommended Specialist: {speciality}")
 
-    # =========================
-    # NEXT 7 DAYS
-    # =========================
     next_days = get_next_7_days()
 
     slot_map = []
@@ -86,6 +91,7 @@ def book_appointment(session_id, insight):
     for day in next_days:
         for doc in doctors:
 
+            # FIXED MATCHING
             if any(s.lower() == speciality.lower() for s in doc["speciality"]):
 
                 if day in doc["available_days"]:
@@ -103,9 +109,6 @@ def book_appointment(session_id, insight):
     if not slot_map:
         return {"error": f"No slots available for {speciality}"}
 
-    # =========================
-    # USER SELECTION
-    # =========================
     choice = input("\n👉 Select slot number: ").strip()
 
     if not choice.isdigit() or not (1 <= int(choice) <= len(slot_map)):
@@ -113,9 +116,6 @@ def book_appointment(session_id, insight):
 
     doctor, day, date, time_slot = slot_map[int(choice) - 1]
 
-    # =========================
-    # CONFIRMATION
-    # =========================
     print("\n👨‍⚕️ Appointment Details:")
     print(f"Doctor: {doctor['name']}")
     print(f"Speciality: {speciality}")
@@ -129,9 +129,16 @@ def book_appointment(session_id, insight):
         return {"error": "Appointment cancelled"}
 
     # =========================
-    # SAVE APPOINTMENT
+    # DB INSERT (REAL FIX)
     # =========================
+    appointment_id = create_appointment(
+        patient_id=session_id,
+        doctor_id=doctor["id"],
+        slot_id=1  # (temporary - you should map real slot_id later)
+    )
+
     appointment_data = {
+        "appointment_id": appointment_id,
         "doctor": doctor["name"],
         "speciality": speciality,
         "day": day,

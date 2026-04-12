@@ -9,23 +9,21 @@ sys.path.insert(
 )
 
 from app.services.booking_service import book_appointment
+from app.services.consultation_db_service import save_consultation_record
 from app.utils.session_store import create_session, add_conversation, get_session
-
 from app.ai.services.input_service import process_patient_input
 from app.ai.services.rag_service import get_relevant_context
 from app.ai.services.insight_service import (
     generate_insights,
     generate_patient_response
 )
-
 from app.services.patient_db_service import create_patient_if_not_exists
-
 
 LOG_FILE = "ai_logs.json"
 
 
 # =========================
-# SAFE SESSION SAVE (FIXED)
+# SAFE SESSION SAVE
 # =========================
 def save_session(session_id):
     session = get_session(session_id)
@@ -39,7 +37,6 @@ def save_session(session_id):
 
     data = []
 
-    # safe read
     if os.path.exists(LOG_FILE):
         try:
             with open(LOG_FILE, "r") as f:
@@ -74,7 +71,7 @@ def chat_workflow():
     print("\n🏥 Welcome to MedFlow AI Medical Assistant")
     print("Type 'exit' anytime to quit\n")
 
-    # STEP 1: PATIENT INFO
+    # STEP 1 PATIENT INFO
     name = safe_input("👤 Enter your full name: ")
     email = safe_input("📧 Enter your email: ")
     age = safe_input("🎂 Enter your age: ")
@@ -89,10 +86,9 @@ def chat_workflow():
         "phone": phone
     }
 
-    # CREATE SESSION
     session_id = create_session(patient_info)
 
-    # SAVE PATIENT TO DB
+    # CREATE PATIENT
     try:
         patient_obj = process_patient_input({
             **patient_info,
@@ -104,6 +100,7 @@ def chat_workflow():
 
     except Exception as e:
         print(f"\n❌ DB Error: {str(e)}")
+        patient_id = None
 
     print("\n✅ Thanks! Now tell me your symptoms.")
 
@@ -114,12 +111,8 @@ def chat_workflow():
 
         symptoms = safe_input("\n🤒 Enter symptoms: ")
 
-        raw_data = {
-            **patient_info,
-            "symptoms": symptoms
-        }
+        raw_data = {**patient_info, "symptoms": symptoms}
 
-        # INPUT VALIDATION
         try:
             patient = process_patient_input(raw_data)
         except Exception as e:
@@ -128,27 +121,26 @@ def chat_workflow():
 
         print("\n🧠 Analyzing your symptoms...\n")
 
-        # =========================
-        # AI PIPELINE
-        # =========================
         try:
             context = get_relevant_context(patient)
 
-            insight_json = generate_insights(patient)
+            insight_json = generate_insights(
+                patient,
+                context.get("context", "")
+            )
+
             response = generate_patient_response(patient, insight_json)
 
         except Exception as e:
             print(f"\n❌ AI Error: {str(e)}")
             continue
 
-        # OUTPUT
         print("\n🤖 AI DOCTOR RESPONSE:")
         print(response)
 
         print("\n🧠 INTERNAL INSIGHT:")
         print(insight_json)
 
-        # SESSION UPDATE
         add_conversation(
             session_id=session_id,
             symptoms=symptoms,
@@ -157,25 +149,19 @@ def chat_workflow():
             timestamp=str(datetime.now())
         )
 
-        # 🔥 SAVE AFTER EVERY CONVERSATION (IMPORTANT FIX)
-        # save_session(session_id)
-
-        # FOLLOW-UP
-        follow_up = safe_input(
-            "\n❓ Do you have more symptoms? (yes/no): "
-        ).lower()
+        follow_up = safe_input("\n❓ More symptoms? (yes/no): ").lower()
 
         if follow_up in ["yes", "y"]:
             continue
 
+        # =========================
         # BOOKING FLOW
-        book = safe_input(
-            "\n🏥 Book appointment? (yes/no): "
-        ).lower()
+        # =========================
+        book = safe_input("\n🏥 Book appointment? (yes/no): ").lower()
 
         if book in ["yes", "y"]:
 
-            print("\n📅 Booking process started...")
+            print("\n📅 Booking process started...\n")
 
             try:
                 appointment = book_appointment(session_id, insight_json)
@@ -190,6 +176,17 @@ def chat_workflow():
                     print(f"⏰ Time: {appointment['time_slot']}")
                     print(f"📌 Status: {appointment['status']}")
 
+                    # =========================
+                    # 🔥 SAVE CONSULTATION TO DB
+                    # =========================
+                    record_id = save_consultation_record(
+                        appointment["appointment_id"],
+                        insight_json,
+                        response
+                    )
+
+                    print(f"\n📄 Consultation saved (ID: {record_id})")
+
             except Exception as e:
                 print(f"\n❌ Booking Error: {str(e)}")
 
@@ -198,13 +195,9 @@ def chat_workflow():
 
         print("\n👋 Session ended.")
 
-        # FINAL SAVE (backup)
         save_session(session_id)
         break
 
 
-# =========================
-# RUN
-# =========================
 if __name__ == "__main__":
     chat_workflow()

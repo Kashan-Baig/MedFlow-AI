@@ -3,9 +3,15 @@ import os
 import sys
 from datetime import datetime
 
+# Fix emoji rendering in Windows terminal
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
+
+from src.ai.db_services.patient_db_service import create_patient_if_not_exists
 from src.ai.db_services.booking_service import book_appointment
 from src.ai.db_services.consultation_db_service import save_consultation_record
-from src.ai.db_services.patient_db_service import create_patient_if_not_exists
+from src.ai.utils.session_store import create_session, add_conversation, get_session
 from src.ai.services.input_service import (
     process_patient_input,
     validate_age,
@@ -14,21 +20,17 @@ from src.ai.services.input_service import (
     validate_email,
     validate_phone
 )
+from src.ai.services.rag_service import get_relevant_context
 from src.ai.services.insight_service import (
     generate_insights,
     generate_patient_response
 )
-from src.ai.services.rag_service import get_relevant_context
-from src.ai.utils.session_store import create_session, add_conversation, get_session
 
-LOG_FILE = "ai_logs.json"
+LOG_FILE = "C:\\Users\\amtul\\Desktop\\MedFlow-AI\\ai_logs.json"
 
-
-# =========================
-# SAFE SESSION SAVE
-# =========================
 def save_session(session_id):
     session = get_session(session_id)
+
     if not session:
         return
 
@@ -37,26 +39,17 @@ def save_session(session_id):
         "session": session
     }
 
-    data = []
-
     if os.path.exists(LOG_FILE):
-        try:
-            with open(LOG_FILE, "r") as f:
-                content = f.read().strip()
-                if content:
-                    data = json.loads(content)
-        except json.JSONDecodeError:
-            data = []
+        with open(LOG_FILE, "r") as f:
+            data = json.load(f)
+    else:
+        data = []
 
     data.append(log_entry)
 
     with open(LOG_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-
-# =========================
-# SAFE INPUT
-# =========================
 def safe_input(prompt):
     value = input(prompt).strip()
     if value.lower() in ["exit", "quit"]:
@@ -64,9 +57,8 @@ def safe_input(prompt):
         sys.exit(0)
     return value
 
-
 # =========================
-# MAIN WORKFLOW
+# MAIN CHAT WORKFLOW
 # =========================
 def chat_workflow():
 
@@ -74,11 +66,8 @@ def chat_workflow():
     print("Type 'exit' anytime to quit\n")
 
     # =========================
-    # STEP 1 PATIENT INFO (VALIDATED LOOP)
+    # STEP 1 PATIENT INFO (SMART VALIDATION)
     # =========================
-    # =========================
-# STEP 1 PATIENT INFO (SMART VALIDATION)
-# =========================
 
     # NAME
     while True:
@@ -135,6 +124,10 @@ def chat_workflow():
         })
 
         patient_id = create_patient_if_not_exists(patient_obj)
+
+        session = get_session(session_id)
+        session["patient_id"] = patient_id   
+
         print(f"\n✅ Patient registered with ID: {patient_id}")
 
     except Exception as e:
@@ -150,36 +143,49 @@ def chat_workflow():
 
         symptoms = safe_input("\n🤒 Enter symptoms: ")
 
-        raw_data = {**patient_info, "symptoms": symptoms}
+        # ✅ CREATE RAW DATA
+        raw_data = {
+            "name": name,
+            "age": age,
+            "gender": gender,
+            "email": email,
+            "phone": phone,
+            "symptoms": symptoms
+        }
 
         try:
             patient = process_patient_input(raw_data)
+
         except Exception as e:
             print(f"\n❌ Input Error: {str(e)}")
             continue
 
+        # =========================
+        # AI PIPELINE
+        # =========================
         print("\n🧠 Analyzing your symptoms...\n")
 
         try:
             context = get_relevant_context(patient)
-
-            insight_json = generate_insights(
-                patient,
-                context.get("context", "")
-            )
-
+            insight_json = generate_insights(patient, context)
             response = generate_patient_response(patient, insight_json)
 
         except Exception as e:
             print(f"\n❌ AI Error: {str(e)}")
             continue
 
+        # =========================
+        # OUTPUT
+        # =========================
         print("\n🤖 AI DOCTOR RESPONSE:")
         print(response)
 
         print("\n🧠 INTERNAL INSIGHT:")
         print(insight_json)
 
+        # =========================
+        # ADD TO SESSION CONVERSATION
+        # =========================
         add_conversation(
             session_id=session_id,
             symptoms=symptoms,
@@ -188,23 +194,32 @@ def chat_workflow():
             timestamp=str(datetime.now())
         )
 
-        follow_up = safe_input("\n❓ More symptoms? (yes/no): ").lower()
+        # =========================
+        # FOLLOW-UP LOOP
+        # =========================
+        follow_up = safe_input(
+            "\n❓ Do you have any more symptoms or questions? (yes/no): "
+        ).lower()
 
         if follow_up in ["yes", "y"]:
+            print("\n➡️ Okay, tell me more.")
             continue
 
         # =========================
-        # BOOKING FLOW
+        # APPOINTMENT FLOW
         # =========================
-        book = safe_input("\n🏥 Book appointment? (yes/no): ").lower()
+        book = safe_input(
+            "\n🏥 Would you like to book an appointment with a doctor? (yes/no): "
+        ).lower()
 
         if book in ["yes", "y"]:
-
-            print("\n📅 Booking process started...\n")
+            print("\n📅 Booking process started...")
 
             try:
+                # ✅ call booking service
                 appointment = book_appointment(session_id, insight_json)
 
+                # ✅ handle response
                 if "error" in appointment:
                     print(f"❌ {appointment['error']}")
                 else:
@@ -230,10 +245,9 @@ def chat_workflow():
                 print(f"\n❌ Booking Error: {str(e)}")
 
         else:
-            print("\n👍 Okay. Take care!")
+            print("\n👍 Okay. Take care and stay healthy!")
 
         print("\n👋 Session ended.")
-
         save_session(session_id)
         break
 

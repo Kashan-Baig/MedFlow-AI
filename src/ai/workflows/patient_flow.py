@@ -3,6 +3,11 @@ import os
 import sys
 from datetime import datetime
 
+# Fix emoji rendering in Windows terminal
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
+
 from src.ai.db_services.patient_db_service import create_patient_if_not_exists
 from src.ai.db_services.booking_service import book_appointment
 from src.ai.db_services.consultation_db_service import save_consultation_record
@@ -15,11 +20,11 @@ from src.ai.services.input_service import (
     validate_email,
     validate_phone
 )
+from src.ai.services.rag_service import get_relevant_context
 from src.ai.services.insight_service import (
     generate_insights,
     generate_patient_response
 )
-from src.ai.services.rag_service import get_relevant_context
 
 LOG_FILE = "C:\\Users\\amtul\\Desktop\\MedFlow-AI\\ai_logs.json"
 
@@ -121,7 +126,7 @@ def chat_workflow():
         patient_id = create_patient_if_not_exists(patient_obj)
 
         session = get_session(session_id)
-        session["patient_id"] = patient_id
+        session["patient_id"] = patient_id   
 
         print(f"\n✅ Patient registered with ID: {patient_id}")
 

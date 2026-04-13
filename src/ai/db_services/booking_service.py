@@ -1,9 +1,8 @@
 from src.ai.utils.session_store import get_session, update_appointment
-from src.ai.utils.doctor_store import doctors
 from datetime import datetime, timedelta
 import json, re
 
-from .appointment_db_service import create_appointment
+from src.ai.db_services.appointment_db_service import create_appointment
 from src.ai.db_services.doctor_service import get_doctors_by_speciality_and_day
 
 
@@ -130,7 +129,7 @@ def book_appointment(session_id, insight):
     appointment_id = create_appointment(
         patient_id=session_id,
         doctor_id=doctor["id"],
-        slot_id=1
+        slot_id=1   
     )
 
     appointment_data = {

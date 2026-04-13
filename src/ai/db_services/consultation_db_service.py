@@ -1,5 +1,5 @@
 from sqlalchemy import text
-from app.database.db_connection import get_db
+from src.backend.database.db_connection import get_db
 import json
 
 

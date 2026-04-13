@@ -1,3 +1,15 @@
+## latest changes by hassan ( UV package manager intiialized )
+---
+
+### first run
+cd app
+uv sync
+### to run workflow run 
+uv run python -m src.ai.workflows.patient_flow
+### to run backend run 
+uv run uvicorn main:app --reload
+
+
 ## ⚙️ Setup Instructions
 
 Follow these steps to set up and run the project locally.

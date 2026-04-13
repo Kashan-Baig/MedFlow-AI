@@ -2,7 +2,7 @@ import os
 import json
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
-from app.ai.services.input_service import PatientInput
+from src.ai.services.input_service import PatientInput
 
 load_dotenv()
 

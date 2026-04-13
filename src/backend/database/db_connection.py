@@ -10,7 +10,9 @@ load_dotenv()
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Engine
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(SQLALCHEMY_DATABASE_URL,
+# This is critical for Neon to prevent connection drops
+    connect_args={"sslmode": "require"})
     
 # Session factory
 SessionLocal = sessionmaker(

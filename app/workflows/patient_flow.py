@@ -5,9 +5,22 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 from app.services.booking_service import book_appointment
+<<<<<<< HEAD
 from app.utils.session_store import create_session, add_conversation
 from app.utils.session_store import get_session
 from app.ai.services.input_service import process_patient_input, to_dict
+=======
+from app.services.consultation_db_service import save_consultation_record
+from app.utils.session_store import create_session, add_conversation, get_session
+from app.ai.services.input_service import (
+    process_patient_input,
+    validate_age,
+    validate_name,
+    validate_gender,
+    validate_email,
+    validate_phone
+)
+>>>>>>> d9799cdb86265c672063f12f6ddc966c4e0cc235
 from app.ai.services.rag_service import get_relevant_context
 from app.ai.services.insight_service import (
     generate_insights,
@@ -53,6 +66,7 @@ def chat_workflow():
     print("Type 'exit' anytime to quit\n")
 
     # =========================
+<<<<<<< HEAD
     # STEP 1: BASIC INFO
     # =========================
     name = safe_input("👤 Enter your full name: ")
@@ -60,6 +74,48 @@ def chat_workflow():
     gender = safe_input("⚧ Enter your gender: ")
     email = safe_input("📧 Enter your email: ")
     phone = safe_input("📱 Enter your phone number: ")
+=======
+    # STEP 1 PATIENT INFO (VALIDATED LOOP)
+    # =========================
+    # =========================
+# STEP 1 PATIENT INFO (SMART VALIDATION)
+# =========================
+
+    # NAME
+    while True:
+        name = safe_input("👤 Enter your full name: ")
+        if validate_name(name):
+            break
+        print("❌ Invalid name. Try again.")
+
+    # EMAIL
+    while True:
+        email = safe_input("📧 Enter your email: ")
+        if validate_email(email):
+            break
+        print("❌ Invalid email format.")
+
+    # AGE
+    while True:
+        age = safe_input("🎂 Enter your age: ")
+        if validate_age(age):
+            break
+        print("❌ Age must be between 1–120.")
+
+    # GENDER
+    while True:
+        gender = safe_input("⚧ Enter your gender (male/female): ").lower()
+        if validate_gender(gender):
+            break
+        print("❌ Only 'male' or 'female' allowed.")
+
+    # PHONE
+    while True:
+        phone = safe_input("📱 Enter your phone number: ")
+        if validate_phone(phone):
+            break
+        print("❌ Invalid phone number.")
+>>>>>>> d9799cdb86265c672063f12f6ddc966c4e0cc235
 
     patient_info = {
         "name": name,
@@ -71,6 +127,25 @@ def chat_workflow():
 
     session_id = create_session(patient_info)
 
+<<<<<<< HEAD
+=======
+    # =========================
+    # CREATE PATIENT IN DB
+    # =========================
+    try:
+        patient_obj = process_patient_input({
+            **patient_info,
+            "symptoms": "initial"
+        })
+
+        patient_id = create_patient_if_not_exists(patient_obj)
+        print(f"\n✅ Patient registered with ID: {patient_id}")
+
+    except Exception as e:
+        print(f"\n❌ DB Error: {str(e)}")
+        patient_id = None
+
+>>>>>>> d9799cdb86265c672063f12f6ddc966c4e0cc235
     print("\n✅ Thanks! Now tell me your symptoms.")
 
     # =========================
@@ -168,6 +243,20 @@ def chat_workflow():
                     print(f"⏰ Time: {appointment['time_slot']}")
                     print(f"📌 Status: {appointment['status']}")
 
+<<<<<<< HEAD
+=======
+                    # =========================
+                    # SAVE CONSULTATION
+                    # =========================
+                    record_id = save_consultation_record(
+                        appointment["appointment_id"],
+                        insight_json,
+                        response
+                    )
+
+                    print(f"\n📄 Consultation saved (ID: {record_id})")
+
+>>>>>>> d9799cdb86265c672063f12f6ddc966c4e0cc235
             except Exception as e:
                 print(f"\n❌ Booking Error: {str(e)}")
 
@@ -179,5 +268,8 @@ def chat_workflow():
         break
 
 
+# =========================
+# RUN
+# =========================
 if __name__ == "__main__":
     chat_workflow()

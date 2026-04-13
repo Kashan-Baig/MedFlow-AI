@@ -11,7 +11,14 @@ sys.path.insert(
 from app.services.booking_service import book_appointment
 from app.services.consultation_db_service import save_consultation_record
 from app.utils.session_store import create_session, add_conversation, get_session
-from app.ai.services.input_service import process_patient_input
+from app.ai.services.input_service import (
+    process_patient_input,
+    validate_age,
+    validate_name,
+    validate_gender,
+    validate_email,
+    validate_phone
+)
 from app.ai.services.rag_service import get_relevant_context
 from app.ai.services.insight_service import (
     generate_insights,
@@ -71,12 +78,47 @@ def chat_workflow():
     print("\n🏥 Welcome to MedFlow AI Medical Assistant")
     print("Type 'exit' anytime to quit\n")
 
-    # STEP 1 PATIENT INFO
-    name = safe_input("👤 Enter your full name: ")
-    email = safe_input("📧 Enter your email: ")
-    age = safe_input("🎂 Enter your age: ")
-    gender = safe_input("⚧ Enter your gender: ")
-    phone = safe_input("📱 Enter your phone number: ")
+    # =========================
+    # STEP 1 PATIENT INFO (VALIDATED LOOP)
+    # =========================
+    # =========================
+# STEP 1 PATIENT INFO (SMART VALIDATION)
+# =========================
+
+    # NAME
+    while True:
+        name = safe_input("👤 Enter your full name: ")
+        if validate_name(name):
+            break
+        print("❌ Invalid name. Try again.")
+
+    # EMAIL
+    while True:
+        email = safe_input("📧 Enter your email: ")
+        if validate_email(email):
+            break
+        print("❌ Invalid email format.")
+
+    # AGE
+    while True:
+        age = safe_input("🎂 Enter your age: ")
+        if validate_age(age):
+            break
+        print("❌ Age must be between 1–120.")
+
+    # GENDER
+    while True:
+        gender = safe_input("⚧ Enter your gender (male/female): ").lower()
+        if validate_gender(gender):
+            break
+        print("❌ Only 'male' or 'female' allowed.")
+
+    # PHONE
+    while True:
+        phone = safe_input("📱 Enter your phone number: ")
+        if validate_phone(phone):
+            break
+        print("❌ Invalid phone number.")
 
     patient_info = {
         "name": name,
@@ -88,7 +130,9 @@ def chat_workflow():
 
     session_id = create_session(patient_info)
 
-    # CREATE PATIENT
+    # =========================
+    # CREATE PATIENT IN DB
+    # =========================
     try:
         patient_obj = process_patient_input({
             **patient_info,
@@ -177,7 +221,7 @@ def chat_workflow():
                     print(f"📌 Status: {appointment['status']}")
 
                     # =========================
-                    # 🔥 SAVE CONSULTATION TO DB
+                    # SAVE CONSULTATION
                     # =========================
                     record_id = save_consultation_record(
                         appointment["appointment_id"],
@@ -199,5 +243,8 @@ def chat_workflow():
         break
 
 
+# =========================
+# RUN
+# =========================
 if __name__ == "__main__":
     chat_workflow()

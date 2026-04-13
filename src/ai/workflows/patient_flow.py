@@ -3,11 +3,6 @@ import os
 import sys
 from datetime import datetime
 
-# Fix emoji rendering in Windows terminal
-sys.stdout.reconfigure(encoding='utf-8')
-sys.stderr.reconfigure(encoding='utf-8')
-
-
 from src.ai.db_services.patient_db_service import create_patient_if_not_exists
 from src.ai.db_services.booking_service import book_appointment
 from src.ai.db_services.consultation_db_service import save_consultation_record

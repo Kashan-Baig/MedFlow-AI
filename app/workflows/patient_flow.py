@@ -4,12 +4,8 @@ import sys
 from datetime import datetime
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+from app.services.patient_db_service import create_patient_if_not_exists
 from app.services.booking_service import book_appointment
-<<<<<<< HEAD
-from app.utils.session_store import create_session, add_conversation
-from app.utils.session_store import get_session
-from app.ai.services.input_service import process_patient_input, to_dict
-=======
 from app.services.consultation_db_service import save_consultation_record
 from app.utils.session_store import create_session, add_conversation, get_session
 from app.ai.services.input_service import (
@@ -20,7 +16,6 @@ from app.ai.services.input_service import (
     validate_email,
     validate_phone
 )
->>>>>>> d9799cdb86265c672063f12f6ddc966c4e0cc235
 from app.ai.services.rag_service import get_relevant_context
 from app.ai.services.insight_service import (
     generate_insights,
@@ -50,6 +45,7 @@ def save_session(session_id):
 
     with open(LOG_FILE, "w") as f:
         json.dump(data, f, indent=4)
+
 def safe_input(prompt):
     value = input(prompt).strip()
     if value.lower() in ["exit", "quit"]:
@@ -66,20 +62,8 @@ def chat_workflow():
     print("Type 'exit' anytime to quit\n")
 
     # =========================
-<<<<<<< HEAD
-    # STEP 1: BASIC INFO
+    # STEP 1 PATIENT INFO (SMART VALIDATION)
     # =========================
-    name = safe_input("👤 Enter your full name: ")
-    age = safe_input("🎂 Enter your age: ")
-    gender = safe_input("⚧ Enter your gender: ")
-    email = safe_input("📧 Enter your email: ")
-    phone = safe_input("📱 Enter your phone number: ")
-=======
-    # STEP 1 PATIENT INFO (VALIDATED LOOP)
-    # =========================
-    # =========================
-# STEP 1 PATIENT INFO (SMART VALIDATION)
-# =========================
 
     # NAME
     while True:
@@ -115,7 +99,6 @@ def chat_workflow():
         if validate_phone(phone):
             break
         print("❌ Invalid phone number.")
->>>>>>> d9799cdb86265c672063f12f6ddc966c4e0cc235
 
     patient_info = {
         "name": name,
@@ -127,8 +110,6 @@ def chat_workflow():
 
     session_id = create_session(patient_info)
 
-<<<<<<< HEAD
-=======
     # =========================
     # CREATE PATIENT IN DB
     # =========================
@@ -139,13 +120,16 @@ def chat_workflow():
         })
 
         patient_id = create_patient_if_not_exists(patient_obj)
+
+        session = get_session(session_id)
+        session["patient_id"] = patient_id   
+
         print(f"\n✅ Patient registered with ID: {patient_id}")
 
     except Exception as e:
         print(f"\n❌ DB Error: {str(e)}")
         patient_id = None
 
->>>>>>> d9799cdb86265c672063f12f6ddc966c4e0cc235
     print("\n✅ Thanks! Now tell me your symptoms.")
 
     # =========================
@@ -166,7 +150,6 @@ def chat_workflow():
         }
 
         try:
-            
             patient = process_patient_input(raw_data)
 
         except Exception as e:
@@ -180,7 +163,7 @@ def chat_workflow():
 
         try:
             context = get_relevant_context(patient)
-            insight_json = generate_insights(patient,context)
+            insight_json = generate_insights(patient, context)
             response = generate_patient_response(patient, insight_json)
 
         except Exception as e:
@@ -243,8 +226,6 @@ def chat_workflow():
                     print(f"⏰ Time: {appointment['time_slot']}")
                     print(f"📌 Status: {appointment['status']}")
 
-<<<<<<< HEAD
-=======
                     # =========================
                     # SAVE CONSULTATION
                     # =========================
@@ -256,7 +237,6 @@ def chat_workflow():
 
                     print(f"\n📄 Consultation saved (ID: {record_id})")
 
->>>>>>> d9799cdb86265c672063f12f6ddc966c4e0cc235
             except Exception as e:
                 print(f"\n❌ Booking Error: {str(e)}")
 

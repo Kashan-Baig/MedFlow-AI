@@ -1,7 +1,6 @@
 from sqlalchemy import text
 from app.database.db_connection import get_db
 
-
 def create_appointment(patient_id, doctor_id, slot_id):
 
     db = get_db()
@@ -18,8 +17,8 @@ def create_appointment(patient_id, doctor_id, slot_id):
             "patient_id": patient_id,
             "doctor_id": doctor_id,
             "slot_id": slot_id,
-            "status": "confirmed",
-            "case_type": "consultation"
+            "status": "CONFIRMED",
+            "case_type": "CONSULTATION"
         })
 
         appointment_id = result.fetchone()[0]

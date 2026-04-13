@@ -140,7 +140,7 @@ def book_appointment(session_id, insight):
         "day": day,
         "date": str(date),
         "time_slot": time_slot,
-        "status": "BOOKED"
+        "status": "confirmed"
     }
 
     update_appointment(session_id, appointment_data)

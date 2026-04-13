@@ -30,6 +30,12 @@ STRICT RULES:
 - Max 3 diseases
 - ONLY ONE primary_specialist (no slashes, no multiple values)
 - Keep response clean (no notes, no explanation)
+- Use ONLY information from the provided CONTEXT below
+- If context lacks information, set primary_specialist to "General Physician"
+- For infants (age < 2), ALWAYS set primary_specialist to "Pediatrician"
+- Do NOT answer anything unrelated to symptoms.
+- Do NOT engage in conversation outside symptom analysis.
+- Always redirect the user back to providing symptoms.
 
 PATIENT:
 Name: {patient.name}
@@ -37,7 +43,7 @@ Age: {patient.age}
 Gender: {patient.gender}
 Symptoms: {patient.symptoms}
 
-CONTEXT:
+CONTEXT (USE ONLY THIS INFORMATION):
 {context}
 
 JSON FORMAT:
@@ -63,26 +69,44 @@ JSON FORMAT:
 # =========================
 # HUMAN RESPONSE (CHATBOT)
 # =========================
+# =========================
+# HUMAN RESPONSE (CHATBOT)
+# =========================
 def generate_patient_response(patient: PatientInput, insight_json: str):
 
     prompt = f"""
 You are a friendly medical assistant.
 
-Explain the situation to the patient in simple human language.
-
 RULES:
-- No JSON
-- Be calm and supportive
-- Suggest next step
-- Do NOT confirm final diagnosis
+- Be brief and concise (2-3 sentences max)
+- Be calm, supportive, and professional
+- Do NOT mention disease names or possible conditions
+- Do NOT say "you may have X" or "it's possible you have Y"
+- Focus ONLY on: acknowledging symptoms + specialist referral + urgency level
+- Suggest next step clearly
+- Use ONLY information from the AI insight provided
+- If symptoms are not covered in available data, respond: "Your symptoms are outside our current coverage area. I recommend consulting a General Physician for a comprehensive evaluation."
+- For infants (age < 2), always direct to Pediatrician
+- If the user says anything OTHER than symptoms (e.g., greetings, random questions, personal info, jokes, or unrelated text), respond strictly with:
+"I can only help with symptom-based medical queries. Please describe your symptoms."
 
-PATIENT:
+Do NOT answer anything unrelated to symptoms.
+Do NOT engage in conversation outside symptom analysis.
+Always redirect the user back to providing symptoms.
+
+PATIENT SYMPTOMS:
 {patient.symptoms}
 
 AI INSIGHT:
 {insight_json}
 
-Now respond naturally:
+GOOD EXAMPLE:
+"I understand you're experiencing concerning symptoms. I recommend seeing an Infectious Disease Specialist as soon as possible for proper evaluation."
+
+BAD EXAMPLE (DO NOT DO THIS):
+"Based on your symptoms, it's possible you may have Dengue Fever or Influenza..."
+
+Respond briefly and naturally (2-3 sentences):
 """
 
     response = llm.invoke(prompt)

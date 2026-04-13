@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>MedFlow AI - WebSocket Tester</title>
+    <style>
+        body {
+            font-family: Arial;
+            max-width: 600px;
+            margin: 40px auto;
+            background: #1a1a2e;
+            color: #eee;
+        }
+
+        h2 {
+            color: #00d2ff;
+        }
+
+        #chat {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            padding: 12px;
+            border-radius: 8px;
+            background: #16213e;
+            margin-bottom: 10px;
+        }
+
+        .msg-server {
+            color: #00d2ff;
+            margin: 6px 0;
+        }
+
+        .msg-user {
+            color: #a8ff78;
+            margin: 6px 0;
+        }
+
+        .msg-error {
+            color: #ff6b6b;
+            margin: 6px 0;
+        }
+
+        input {
+            width: 75%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            background: #0f3460;
+            color: #fff;
+        }
+
+        button {
+            padding: 10px 16px;
+            background: #00d2ff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #status {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>🏥 MedFlow AI - WebSocket Tester</h2>
+    <div id="status">⏳ Connecting...</div>
+    <div id="chat"></div>
+    <input id="msg" placeholder="Type your message..." onkeypress="if(event.key==='Enter') send()" />
+    <button onclick="send()">Send</button>
+
+    <script>
+        const chat = document.getElementById('chat');
+        const status = document.getElementById('status');
+        const input = document.getElementById('msg');
+
+        // Connect to your WebSocket endpoint
+        const ws = new WebSocket('ws://127.0.0.1:8000/api/v1/ws/patient/chat');
+
+        ws.onopen = () => {
+            status.textContent = '✅ Connected!';
+            status.style.color = '#a8ff78';
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            const div = document.createElement('div');
+            div.className = 'msg-server';
+            div.textContent = `🤖 [${data.step}]: ${data.message}`;
+            chat.appendChild(div);
+
+            // If there's an insight, show it
+            if (data.insight) {
+                const insightDiv = document.createElement('div');
+                insightDiv.className = 'msg-server';
+                insightDiv.textContent = `📊 Insight: ${typeof data.insight === 'string' ? data.insight : JSON.stringify(data.insight, null, 2)}`;
+                chat.appendChild(insightDiv);
+            }
+
+            chat.scrollTop = chat.scrollHeight;
+        };
+
+        ws.onerror = () => {
+            status.textContent = '❌ Connection error!';
+            status.style.color = '#ff6b6b';
+        };
+
+        ws.onclose = () => {
+            status.textContent = '🔌 Disconnected';
+            status.style.color = '#ff6b6b';
+        };
+
+        function send() {
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            const div = document.createElement('div');
+            div.className = 'msg-user';
+            div.textContent = `👤 You: ${msg}`;
+            chat.appendChild(div);
+
+            ws.send(msg);
+            input.value = '';
+            chat.scrollTop = chat.scrollHeight;
+        }
+    </script>
+</body>
+
+</html>
+</script>
+</body>
+
+</html>

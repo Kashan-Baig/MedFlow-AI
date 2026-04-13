@@ -3,9 +3,7 @@ from app.database.db_connection import get_db
 
 
 def create_appointment(patient_id, doctor_id, slot_id):
-
     db = get_db()   # ✅ FIXED
-
     try:
         query = text("""
             INSERT INTO appointments 

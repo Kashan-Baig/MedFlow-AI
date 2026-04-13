@@ -264,5 +264,34 @@
                 "status": null
             }
         }
+    },
+    {
+        "timestamp": "2026-04-13 20:05:32.057411",
+        "session": {
+            "session_id": 1,
+            "user_id": null,
+            "patient_info": {
+                "name": "hassan shakil bhai",
+                "age": "21",
+                "gender": "male",
+                "email": "hassanbhai@gmail.com",
+                "phone": "03900123331"
+            },
+            "conversation": [
+                {
+                    "symptoms": "high fever",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-13 20:05:21.433659"
+                }
+            ],
+            "appointment": {
+                "doctor": null,
+                "speciality": null,
+                "day": null,
+                "time_slot": null,
+                "status": null
+            }
+        }
     }
 ]

@@ -1,9 +1,10 @@
 from sqlalchemy import text
 from src.backend.database.db_connection import get_db
+from src.backend.database.models import AppointmentStatus, CaseType
 
 
 def create_appointment(patient_id, doctor_id, slot_id):
-    db = get_db()   # ✅ FIXED
+    db = get_db()
     try:
         query = text("""
             INSERT INTO appointments 
@@ -16,8 +17,8 @@ def create_appointment(patient_id, doctor_id, slot_id):
             "patient_id": patient_id,
             "doctor_id": doctor_id,
             "slot_id": slot_id,
-            "status": "confirmed",
-            "case_type": "CONSULTATION"
+            "status": AppointmentStatus.CONFIRMED.name,
+            "case_type": CaseType.CONSULTATION.name,
         })
 
         appointment_id = result.fetchone()[0]

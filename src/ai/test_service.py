@@ -1,5 +1,5 @@
-from app.ai.services.input_service import process_patient_input
-from app.ai.services.insight_service import generate_insights
+from src.ai.services.input_service import process_patient_input
+from src.ai.services.insight_service import generate_insights
 
 # -------------------------
 # SAMPLE FRONTEND INPUT

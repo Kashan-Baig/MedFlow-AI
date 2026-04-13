@@ -1,9 +1,9 @@
-from app.utils.session_store import get_session, update_appointment
-from app.utils.doctor_store import doctors
+from src.ai.utils.session_store import get_session, update_appointment
 from datetime import datetime, timedelta
 import json, re
 
-from app.services.appointment_db_service import create_appointment
+from src.ai.db_services.appointment_db_service import create_appointment
+from src.ai.db_services.doctor_service import get_doctors_by_speciality_and_day
 
 
 # =========================
@@ -89,22 +89,20 @@ def book_appointment(session_id, insight):
     count = 1
 
     for day in next_days:
-        for doc in doctors:
 
-            # FIXED MATCHING
-            if any(s.lower() == speciality.lower() for s in doc["speciality"]):
+        available_doctors = get_doctors_by_speciality_and_day(speciality, day)
 
-                if day in doc["available_days"]:
+        for doc in available_doctors:
 
-                    date = get_next_date_for_day(day)
+            date = get_next_date_for_day(day)
 
-                    for time_slot in doc["time_slots"]:
-                        slot_map.append((doc, day, date, time_slot))
+            for time_slot in doc["time_slots"]:
+                slot_map.append((doc, day, date, time_slot))
 
-                        print(
-                            f"{count}. {day} ({date}) - {time_slot} ({doc['name']})"
-                        )
-                        count += 1
+                print(
+                    f"{count}. {day} ({date}) - {time_slot} ({doc['name']})"
+                )
+                count += 1
 
     if not slot_map:
         return {"error": f"No slots available for {speciality}"}
@@ -128,13 +126,10 @@ def book_appointment(session_id, insight):
     if confirm not in ["yes", "y"]:
         return {"error": "Appointment cancelled"}
 
-    # =========================
-    # DB INSERT (REAL FIX)
-    # =========================
     appointment_id = create_appointment(
         patient_id=session_id,
         doctor_id=doctor["id"],
-        slot_id=1  # (temporary - you should map real slot_id later)
+        slot_id=1   
     )
 
     appointment_data = {

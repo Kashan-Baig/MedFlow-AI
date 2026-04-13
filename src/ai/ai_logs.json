@@ -1,0 +1,31 @@
+[
+    {
+        "timestamp": "2026-04-13 18:17:50.720914",
+        "session": {
+            "session_id": 1,
+            "user_id": null,
+            "patient_info": {
+                "name": "hassan shakil",
+                "age": "21",
+                "gender": "m",
+                "email": "hassanshakil@gmail.com",
+                "phone": "03059167616"
+            },
+            "conversation": [
+                {
+                    "symptoms": "cough flu high fever headache",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-13 18:16:49.733769"
+                }
+            ],
+            "appointment": {
+                "doctor": null,
+                "speciality": null,
+                "day": null,
+                "time_slot": null,
+                "status": null
+            }
+        }
+    }
+]

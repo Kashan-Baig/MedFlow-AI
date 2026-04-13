@@ -1,9 +1,9 @@
-from app.utils.session_store import get_session, update_appointment
-from app.utils.doctor_store import doctors
+from src.ai.utils.session_store import get_session, update_appointment
+from src.ai.utils.doctor_store import doctors
 from datetime import datetime, timedelta
 import json, re
 
-from app.services.appointment_db_service import create_appointment
+from .appointment_db_service import create_appointment
 
 
 # =========================

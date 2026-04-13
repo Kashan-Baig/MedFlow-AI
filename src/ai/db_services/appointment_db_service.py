@@ -1,5 +1,5 @@
 from sqlalchemy import text
-from app.database.db_connection import get_db
+from src.backend.database.db_connection import get_db
 
 
 def create_appointment(patient_id, doctor_id, slot_id):

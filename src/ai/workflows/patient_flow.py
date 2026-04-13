@@ -3,15 +3,10 @@ import os
 import sys
 from datetime import datetime
 
-sys.path.insert(
-    0,
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-)
-
-from app.services.booking_service import book_appointment
-from app.services.consultation_db_service import save_consultation_record
-from app.utils.session_store import create_session, add_conversation, get_session
-from app.ai.services.input_service import (
+from src.ai.db_services.booking_service import book_appointment
+from src.ai.db_services.consultation_db_service import save_consultation_record
+from src.ai.db_services.patient_db_service import create_patient_if_not_exists
+from src.ai.services.input_service import (
     process_patient_input,
     validate_age,
     validate_name,
@@ -19,12 +14,12 @@ from app.ai.services.input_service import (
     validate_email,
     validate_phone
 )
-from app.ai.services.rag_service import get_relevant_context
-from app.ai.services.insight_service import (
+from src.ai.services.insight_service import (
     generate_insights,
     generate_patient_response
 )
-from app.services.patient_db_service import create_patient_if_not_exists
+from src.ai.services.rag_service import get_relevant_context
+from src.ai.utils.session_store import create_session, add_conversation, get_session
 
 LOG_FILE = "ai_logs.json"
 

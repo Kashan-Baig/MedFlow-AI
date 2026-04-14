@@ -1,11 +1,23 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List ,Any, Generic, TypeVar
+from typing import Optional, List ,Any, Generic
+from typing_extensions import TypeVar
 from datetime import date, time
 from decimal import Decimal
-from src.backend.database.models import UserRole, AppointmentStatus, CaseType, BloodGroup
+from src.backend.database.models import AppointmentStatus, CaseType, BloodGroup
+from src.backend.schemas.auth_schemas import (
+    AdminAuthOut,
+    DoctorAuthOut,
+    LoginResponse,
+    PatientAuthOut,
+    RegisterResponse,
+    UserBase,
+    UserCreate,
+    UserLogin,
+    UserOut,
+)
 
-# This allows 'data' to be any model (UserOut, PatientOut, etc.)
-T = TypeVar("T")
+# Defaulting T to Any allows both GenericResponse[T] and GenericResponse.
+T = TypeVar("T", default=Any)
 
 class GenericResponse(BaseModel, Generic[T]):
     status_code: int
@@ -13,28 +25,6 @@ class GenericResponse(BaseModel, Generic[T]):
     data: Optional[T] = None
 
 
-# --- AUTH & USER SCHEMAS ---
-class UserBase(BaseModel):
-    email: EmailStr
-
-class UserCreate(UserBase):
-    password: str
-    role: UserRole = UserRole.PATIENT
-
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-    role : UserRole 
-
-class UserOut(UserBase):
-    id: int
-    role: str
-    class Config:
-        from_attributes = True
-
-class LoginResponse(BaseModel):
-    user: UserOut
-    access_token: str
 
 # --- PATIENT & HISTORY ---
 class MedicalHistoryBase(BaseModel):

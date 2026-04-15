@@ -126,8 +126,13 @@ def book_appointment(session_id, insight):
     if confirm not in ["yes", "y"]:
         return {"error": "Appointment cancelled"}
 
+    # ✅ Use actual patient_id integer from session (not the session UUID)
+    patient_id = session.get("patient_id")
+    if not patient_id:
+        return {"error": "Patient ID not found in session. Registration may have failed."}
+
     appointment_id = create_appointment(
-        patient_id=session_id,
+        patient_id=patient_id,
         doctor_id=doctor["id"],
         slot_id=1   
     )

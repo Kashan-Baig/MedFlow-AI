@@ -31,15 +31,7 @@ def get_next_date_for_day(day_name: str):
 
 
 # =========================
-# UTIL: NEXT 7 DAYS
-# =========================
-def get_next_7_days():
-    today = datetime.now()
-    return [(today + timedelta(days=i)).strftime("%A") for i in range(7)]
-
-
-# =========================
-# PARSE INSIGHT
+# UTIL: PARSE INSIGHT
 # =========================
 def parse_insight(insight):
     if isinstance(insight, str):
@@ -58,7 +50,9 @@ def parse_insight(insight):
 def normalize_speciality(text):
     if not text:
         return "General Physician"
-    return text.split("/")[0].strip()  # take first part only
+
+    text = text.lower().replace("-", " ").strip()
+    return text.split("/")[0].title()
 
 
 # =========================
@@ -81,7 +75,16 @@ def book_appointment(session_id, insight):
 
     print(f"\n🩺 Recommended Specialist: {speciality}")
 
-    next_days = get_next_7_days()
+    next_days = [
+        (datetime.now() + timedelta(days=i)).strftime("%A")
+        for i in range(7)
+    ]
+
+    # Precompute dates (optimization)
+    day_date_map = {
+        day: get_next_date_for_day(day)
+        for day in next_days
+    }
 
     slot_map = []
     print("\n📅 Available Slots (Next 7 Days):\n")
@@ -90,29 +93,49 @@ def book_appointment(session_id, insight):
 
     for day in next_days:
 
+
         available_doctors = get_doctors_by_speciality_and_day(speciality, day)
 
+
         for doc in available_doctors:
+            date = day_date_map[day]
 
-            date = get_next_date_for_day(day)
+            # IMPORTANT FIX: use DB arrays directly (safe loop)
+            for i in range(len(doc["time_slots"])):
+                slot_id = doc["slot_ids"][i]
+                time_slot = doc["time_slots"][i]
 
-            for time_slot in doc["time_slots"]:
-                slot_map.append((doc, day, date, time_slot))
+                slot_map.append({
+                    "doctor": doc,
+                    "day": day,
+                    "date": date,
+                    "time_slot": time_slot,
+                    "slot_id": slot_id
+                })
 
                 print(
-                    f"{count}. {day} ({date}) - {time_slot} ({doc['name']})"
+                    f"{count}. {day} ({date}) - {time_slot} - {doc['name']}"
                 )
                 count += 1
 
     if not slot_map:
         return {"error": f"No slots available for {speciality}"}
 
+    # =========================
+    # USER SELECTION
+    # =========================
     choice = input("\n👉 Select slot number: ").strip()
 
     if not choice.isdigit() or not (1 <= int(choice) <= len(slot_map)):
         return {"error": "Invalid slot selection"}
 
-    doctor, day, date, time_slot = slot_map[int(choice) - 1]
+    selected = slot_map[int(choice) - 1]
+
+    doctor = selected["doctor"]
+    day = selected["day"]
+    date = selected["date"]
+    time_slot = selected["time_slot"]
+    slot_id = selected["slot_id"]
 
     print("\n👨‍⚕️ Appointment Details:")
     print(f"Doctor: {doctor['name']}")
@@ -120,21 +143,28 @@ def book_appointment(session_id, insight):
     print(f"Day: {day}")
     print(f"Date: {date}")
     print(f"Time: {time_slot}")
+    print(f"Slot ID: {slot_id}")
 
     confirm = input("\n✅ Confirm appointment? (yes/no): ").lower()
 
     if confirm not in ["yes", "y"]:
         return {"error": "Appointment cancelled"}
 
-    # ✅ Use actual patient_id integer from session (not the session UUID)
+    # =========================
+    # FINAL VALIDATION
+    # =========================
     patient_id = session.get("patient_id")
-    if not patient_id:
-        return {"error": "Patient ID not found in session. Registration may have failed."}
 
+    if not patient_id:
+        return {"error": "Patient ID not found in session"}
+
+    # =========================
+    # CREATE APPOINTMENT
+    # =========================
     appointment_id = create_appointment(
         patient_id=patient_id,
         doctor_id=doctor["id"],
-        slot_id=1   
+        slot_id=slot_id
     )
 
     appointment_data = {

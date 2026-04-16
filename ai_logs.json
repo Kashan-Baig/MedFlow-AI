@@ -462,5 +462,109 @@
             },
             "patient_id": 17
         }
+    },
+    {
+        "timestamp": "2026-04-16 01:09:17.172339",
+        "session": {
+            "session_id": 1,
+            "user_id": null,
+            "patient_info": {
+                "name": "kasha",
+                "age": "33",
+                "gender": "male",
+                "email": "haha@gmail.com",
+                "phone": "03216453827"
+            },
+            "conversation": [
+                {
+                    "symptoms": "Get medical advice",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-16 01:02:47.261775"
+                },
+                {
+                    "symptoms": "have flue",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-16 01:02:59.832278"
+                },
+                {
+                    "symptoms": "ok i want to scedule appointment",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-16 01:03:35.352123"
+                }
+            ],
+            "appointment": {
+                "doctor": null,
+                "speciality": null,
+                "day": null,
+                "time_slot": null,
+                "status": null
+            },
+            "patient_id": 26,
+            "last_insight": "{\n  \"possible_diseases\": [\n    {\n      \"name\": \"Influenza\",\n      \"confidence\": 0.8\n    },\n    {\n      \"name\": \"Pneumonia\",\n      \"confidence\": 0.6\n    },\n    {\n      \"name\": \"Gastroenteritis\",\n      \"confidence\": 0.4\n    }\n  ],\n  \"primary_specialist\": \"General Physician\",\n  \"alternative_specialists\": [],\n  \"urgency\": \"routine\",\n  \"severity_score\": 5,\n  \"recommended_action\": \"Schedule an appointment within a few days\"\n}",
+            "last_response": "I can only help with symptom-based medical queries. Please describe your symptoms."
+        }
+    },
+    {
+        "timestamp": "2026-04-16 12:28:46.532371",
+        "session": {
+            "session_id": 1,
+            "user_id": null,
+            "patient_info": {
+                "name": "kas",
+                "age": "22",
+                "gender": "male",
+                "email": "mm@gmail.com",
+                "phone": "03456789098"
+            },
+            "conversation": [
+                {
+                    "symptoms": "flue",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-16 12:28:42.898985"
+                }
+            ],
+            "appointment": {
+                "doctor": null,
+                "speciality": null,
+                "day": null,
+                "time_slot": null,
+                "status": null
+            },
+            "patient_id": 34
+        }
+    },
+    {
+        "timestamp": "2026-04-16 12:35:13.568183",
+        "session": {
+            "session_id": 1,
+            "user_id": null,
+            "patient_info": {
+                "name": "ka",
+                "age": "33",
+                "gender": "male",
+                "email": "mm@gmail.com",
+                "phone": "03334343434"
+            },
+            "conversation": [
+                {
+                    "symptoms": "flue",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-16 12:34:52.188319"
+                }
+            ],
+            "appointment": {
+                "doctor": null,
+                "speciality": null,
+                "day": null,
+                "time_slot": null,
+                "status": null
+            },
+            "patient_id": 34
+        }
     }
 ]

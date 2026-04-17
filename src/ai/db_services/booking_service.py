@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import json, re
 
 from src.ai.db_services.appointment_db_service import create_appointment
-from src.ai.db_services.doctor_service import get_doctors_by_speciality_and_day
+from src.ai.db_services.doctor_service import get_doctors_by_speciality_and_days
 
 
 # =========================
@@ -87,24 +87,20 @@ def book_appointment(session_id, insight):
     }
 
     slot_map = []
-    print("\n📅 Available Slots (Next 7 Days):\n")
+    print("\n📅 Available Slots in the Next Week:\n")
 
-    count = 1
-
+    count = 1 
+    available_doctors_by_day = get_doctors_by_speciality_and_days(speciality, next_days)
+    
     for day in next_days:
-
-
-        available_doctors = get_doctors_by_speciality_and_day(speciality, day)
-
+        available_doctors = available_doctors_by_day.get(day, [])
+        date = day_date_map[day]
 
         for doc in available_doctors:
-            date = day_date_map[day]
-
             # IMPORTANT FIX: use DB arrays directly (safe loop)
             for i in range(len(doc["time_slots"])):
                 slot_id = doc["slot_ids"][i]
                 time_slot = doc["time_slots"][i]
-
                 slot_map.append({
                     "doctor": doc,
                     "day": day,
@@ -112,7 +108,6 @@ def book_appointment(session_id, insight):
                     "time_slot": time_slot,
                     "slot_id": slot_id
                 })
-
                 print(
                     f"{count}. {day} ({date}) - {time_slot} - {doc['name']}"
                 )

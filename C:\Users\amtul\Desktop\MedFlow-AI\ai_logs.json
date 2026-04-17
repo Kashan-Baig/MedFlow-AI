@@ -1,0 +1,32 @@
+[
+    {
+        "timestamp": "2026-04-16 13:29:16.800988",
+        "session": {
+            "session_id": 1,
+            "user_id": null,
+            "patient_info": {
+                "name": "hassan shakil",
+                "age": "21",
+                "gender": "male",
+                "email": "abchassan@gmail.com",
+                "phone": "123123123123"
+            },
+            "conversation": [
+                {
+                    "symptoms": "cough sore throat headache",
+                    "insight": "Basic consultation recommended",
+                    "specialist": "General Physician",
+                    "timestamp": "2026-04-16 13:28:14.133587"
+                }
+            ],
+            "appointment": {
+                "doctor": null,
+                "speciality": null,
+                "day": null,
+                "time_slot": null,
+                "status": null
+            },
+            "patient_id": 37
+        }
+    }
+]

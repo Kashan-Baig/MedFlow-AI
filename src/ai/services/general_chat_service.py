@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
-from src.ai.db_services.doctor_service import get_doctors_by_speciality_and_day
+from src.ai.db_services.doctor_service import get_doctors_by_speciality_and_days
 
 load_dotenv()
 
@@ -79,9 +79,11 @@ def extract_speciality(user_input: str) -> str:
 def fetch_doctors_by_speciality(speciality: str):
 
     all_doctors = {}
+    days = get_next_7_days()
+    daily_map = get_doctors_by_speciality_and_days(speciality, days)
 
-    for day in get_next_7_days():
-        doctors = get_doctors_by_speciality_and_day(speciality, day)
+    for day in days:
+        doctors = daily_map.get(day, [])
 
         for doc in doctors:
             if doc["id"] not in all_doctors:
@@ -93,8 +95,14 @@ def fetch_doctors_by_speciality(speciality: str):
 # =========================
 # MAIN GENERAL CHAT
 # =========================
-def general_chat(user_input: str):
+def general_chat(user_input: str , patient_info: dict = None):
 
+#    patient_context = ""
+    if patient_info:
+        patient_context = f"\nYou are currently talking to: {patient_info['name']}, a {patient_info['age']} year old {patient_info['gender']}."
+  
+  
+  
     # =========================
     # 1. HANDLE DOCTOR QUERIES (DB)
     # =========================
@@ -128,12 +136,14 @@ def general_chat(user_input: str):
 
         return response
 
+
+
     # =========================
     # 2. GENERAL LLM CHAT
     # =========================
     prompt = f"""
 You are MedFlow AI — a professional healthcare assistant.
-
+{patient_context}
 Your responsibilities:
 - Answer general questions about the system
 - Explain doctor availability and booking process

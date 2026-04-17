@@ -5,9 +5,7 @@ from datetime import datetime
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
-from src.ai.db_services.patient_db_service import create_patient_if_not_exists
-from src.ai.db_services.booking_service import book_appointment
-from src.ai.db_services.doctor_service import get_doctors_by_speciality_and_day
+import src.ai.db_services.db_services as db_service
 from src.ai.utils.session_store import (
     create_session,
     add_conversation,
@@ -47,13 +45,17 @@ def safe_input(prompt):
 # =========================
 # MAIN WORKFLOW
 # =========================
-def chat_workflow():
+def chat_workflow(patient_id:str):
 
-    print("\n" + INTRO_MESSAGE)
 
     session_id = create_session({})
     session = get_session(session_id)
+    session["patient_id"] = patient_id
+    patient_info = db_service.get_patient_by_id(patient_id)
 
+    # storing the patient info for the session
+    session["patient_info"] = patient_info or {}
+    print(f"\nWelcome back, {patient_info['name']}! " + INTRO_MESSAGE)
     # =========================
     # STATE INIT
     # =========================
@@ -84,12 +86,12 @@ def chat_workflow():
 
             if intent == "medical":
                 session["mode"] = "medical"
-                session["stage"] = "collect_name"
-                print("\n🩺 What is your full name?")
+                session["stage"] = "symptom"
+                print("\n Describe your symptoms:")
                 continue
 
             print("\n🤖 Assistant:")
-            print(general_chat(user_input))
+            print(general_chat(user_input , session["patient_info"]))
             continue
 
         # =====================================================
@@ -99,78 +101,78 @@ def chat_workflow():
         # -------------------------
         # NAME
         # -------------------------
-        if stage == "collect_name":
-            if validate_name(user_input):
-                session["patient_info"]["name"] = user_input
-                session["stage"] = "collect_email"
-                print("📧 Enter email:")
-            else:
-                print("❌ Invalid name")
-            continue
+        # if stage == "collect_name":
+        #     if validate_name(user_input):
+        #         session["patient_info"]["name"] = user_input
+        #         session["stage"] = "collect_email"
+        #         print("📧 Enter email:")
+        #     else:
+        #         print("❌ Invalid name")
+        #     continue
 
-        # -------------------------
-        # EMAIL
-        # -------------------------
-        if stage == "collect_email":
-            if validate_email(user_input):
-                session["patient_info"]["email"] = user_input
-                session["stage"] = "collect_age"
-                print("🎂 Enter age:")
-            else:
-                print("❌ Invalid email")
-            continue
+        # # -------------------------
+        # # EMAIL
+        # # -------------------------
+        # if stage == "collect_email":
+        #     if validate_email(user_input):
+        #         session["patient_info"]["email"] = user_input
+        #         session["stage"] = "collect_age"
+        #         print("🎂 Enter age:")
+        #     else:
+        #         print("❌ Invalid email")
+        #     continue
 
-        # -------------------------
-        # AGE
-        # -------------------------
-        if stage == "collect_age":
-            if validate_age(user_input):
-                session["patient_info"]["age"] = user_input
-                session["stage"] = "collect_gender"
-                print("⚧ Gender:")
-            else:
-                print("❌ Invalid age")
-            continue
+        # # -------------------------
+        # # AGE
+        # # -------------------------
+        # if stage == "collect_age":
+        #     if validate_age(user_input):
+        #         session["patient_info"]["age"] = user_input
+        #         session["stage"] = "collect_gender"
+        #         print("⚧ Gender:")
+        #     else:
+        #         print("❌ Invalid age")
+        #     continue
 
-        # -------------------------
-        # GENDER
-        # -------------------------
-        if stage == "collect_gender":
-            if validate_gender(user_input.lower()):
-                session["patient_info"]["gender"] = user_input.lower()
-                session["stage"] = "collect_phone"
-                print("📱 Phone:")
-            else:
-                print("❌ Invalid gender")
-            continue
+        # # -------------------------
+        # # GENDER
+        # # -------------------------
+        # if stage == "collect_gender":
+        #     if validate_gender(user_input.lower()):
+        #         session["patient_info"]["gender"] = user_input.lower()
+        #         session["stage"] = "collect_phone"
+        #         print("📱 Phone:")
+        #     else:
+        #         print("❌ Invalid gender")
+        #     continue
 
-        # -------------------------
-        # PHONE
-        # -------------------------
-        if stage == "collect_phone":
-            if validate_phone(user_input):
+        # # -------------------------
+        # # PHONE
+        # # -------------------------
+        # if stage == "collect_phone":
+        #     if validate_phone(user_input):
 
-                session["patient_info"]["phone"] = user_input
+        #         session["patient_info"]["phone"] = user_input
 
-                try:
-                    patient_obj = process_patient_input({
-                        **session["patient_info"],
-                        "symptoms": "initial"
-                    })
+        #         try:
+        #             patient_obj = process_patient_input({
+        #                 **session["patient_info"],
+        #                 "symptoms": "initial"
+        #             })
 
-                    patient_id = create_patient_if_not_exists(patient_obj)
-                    session["patient_id"] = patient_id
+        #             patient_id = create_patient_if_not_exists(patient_obj)
+        #             session["patient_id"] = patient_id
 
-                    print(f"\n✅ Registered (ID: {patient_id})")
+        #             print(f"\n✅ Registered (ID: {patient_id})")
 
-                except Exception as e:
-                    print(f"⚠️ DB Warning: {str(e)}")
+        #         except Exception as e:
+        #             print(f"⚠️ DB Warning: {str(e)}")
 
-                session["stage"] = "symptom"
-                print("\n🤒 Describe your symptoms:")
-            else:
-                print("❌ Invalid phone")
-            continue
+        #         session["stage"] = "symptom"
+        #         print("\n🤒 Describe your symptoms:")
+        #     else:
+        #         print("❌ Invalid phone")
+        #     continue
 
         # =====================================================
         # 🧠 SYMPTOM ANALYSIS
@@ -226,6 +228,7 @@ def chat_workflow():
             elif answer in ["no", "n"]:
                 # DON'T just set stage and continue - fall through to booking
                 session["stage"] = "booking"
+                stage = "booking"
                 # Remove continue here so it falls through to booking logic below
 
             else:
@@ -236,7 +239,6 @@ def chat_workflow():
         # 📅 BOOKING
         # =====================================================
         if stage == "booking":
-
             print("\n📅 Finding appointment...\n")
 
             try:
@@ -271,4 +273,4 @@ def chat_workflow():
 # RUN
 # =========================
 if __name__ == "__main__":
-    chat_workflow()
+    chat_workflow(61)

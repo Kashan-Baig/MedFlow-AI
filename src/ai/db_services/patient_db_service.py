@@ -1,9 +1,9 @@
 from sqlalchemy import text
 from src.backend.database.db_connection import get_db
 
-def get_patient_by_user_id(user_id):
+def get_patient_by_id(patient_id):
     """
-    Fetch patient record by user_id from patients table
+    Fetch patient record by patient_id from patients table
     """
     db = get_db()
 
@@ -11,11 +11,10 @@ def get_patient_by_user_id(user_id):
         query = text("""
             SELECT patient_id, full_name, email, age, gender, contact_number 
             FROM patients 
-            WHERE user_id = :user_id
+            WHERE patient_id = :patient_id
         """)
 
-        result = db.execute(query, {"user_id": user_id}).fetchone()
-
+        result = db.execute(query, {"patient_id": patient_id}).fetchone()
         if result:
             return {
                 "id": result[0],

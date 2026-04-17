@@ -224,8 +224,9 @@ def chat_workflow():
                 continue
 
             elif answer in ["no", "n"]:
+                # DON'T just set stage and continue - fall through to booking
                 session["stage"] = "booking"
-                continue
+                # Remove continue here so it falls through to booking logic below
 
             else:
                 print("❌ Please answer yes or no.")

@@ -10,31 +10,50 @@ llm = ChatGroq(
     temperature=0
 )
 
-def detect_intent(user_input: str) -> str:
+def detect_intent(user_input):
+    """
+    Classify user intent into medical or general
+    """
+    
     prompt = f"""
 Classify the user's intent into ONE of these:
 
-1. medical → ONLY when user is describing symptoms, illness, pain, or not feeling well
+1. medical → When user:
+   - Is describing symptoms, illness, pain, or not feeling well
+   - Wants to book/schedule an appointment
+   - Mentions needing a doctor or medical help
+   
    Examples:
-   - I have fever
-   - I feel headache
-   - I am sick
-   - chest pain
+   - "I have fever"
+   - "I feel headache"
+   - "I am sick"
+   - "chest pain"
+   - "book an appointment"
+   - "I want to see a doctor"
+   - "schedule appointment"
+   - "need medical help"
 
 2. general → EVERYTHING else:
-   - asking about doctors
-   - asking about system
-   - booking questions
-   - greetings
-   - chit chat
+   - General questions about the system
+   - Asking how things work
+   - Greetings
+   - Chit chat
+   - Questions about doctors (but not booking)
+   
+   Examples:
+   - "Hello"
+   - "How does this work?"
+   - "What doctors do you have?"
+   - "Tell me about your services"
 
-IMPORTANT RULE:
-If user is asking about doctors, hospital, system, or information → ALWAYS return "general"
+IMPORTANT RULES:
+- If user wants to BOOK or SCHEDULE → return "medical"
+- If user is just ASKING about doctors/services → return "general"
 
 User Input:
 {user_input}
 
-Return ONLY:
+Return ONLY one word:
 medical
 or
 general

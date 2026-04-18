@@ -12,7 +12,9 @@ SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 # Engine
 engine = create_engine(SQLALCHEMY_DATABASE_URL,
 # This is critical for Neon to prevent connection drops
-    connect_args={"sslmode": "require"})
+    connect_args={"sslmode": "require"},
+    pool_pre_ping=True
+)
     
 # Session factory
 SessionLocal = sessionmaker(

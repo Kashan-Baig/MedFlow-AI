@@ -33,7 +33,9 @@ class BloodGroup(str, enum.Enum):
     O_POSITIVE = "O+"
     O_NEGATIVE = "O-"
 
-
+class Gender(str, enum.Enum):
+    Male = "Male"
+    Female = "Female"
 
 class User(Base):
     __tablename__ = "users"
@@ -45,29 +47,32 @@ class User(Base):
 class Admin(Base):
     __tablename__ = "admins"
     admin_id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)
+    full_name = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     password_hash = Column(String(256), nullable=False)
 
 class Doctor(Base):
     __tablename__ = "doctors"
     doctor_id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)
+    full_name = Column(String(100), nullable=False)
+    email = Column(String(100), unique=True, nullable=False)
+    contact_number = Column(String(20))
+    gender = Column(Enum(Gender))
     specialization = Column(String(50))
     workload_count = Column(Integer, default=0)
     on_duty_status = Column(Boolean, default=True)
     password_hash = Column(String(256), nullable=False)
-    
     slots = relationship("ScheduleSlot", back_populates="doctor")
 
 class Patient(Base):
     __tablename__ = "patients"
     patient_id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String(100), nullable=False)
+    password_hash = Column(String(256), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     contact_number = Column(String(20))
     age = Column(Integer)
-    gender = Column(String(10))
+    gender = Column(Enum(Gender))
     address = Column(Text)
     appointments = relationship("Appointment", back_populates="patient")
     history = relationship("MedicalHistory", back_populates="patient", uselist=False)

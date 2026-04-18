@@ -1,35 +1,72 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from src.backend.database.db_connection import get_db
 from src.backend.database import models
+from src.backend.database.db_connection import get_db
+from src.backend.database.models import UserRole
 from src.backend.schemas import all_schema as schemas
 from src.backend.core import middleware as security
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-@router.post("/register", response_model=schemas.GenericResponse[schemas.UserOut])
+@router.post("/register", response_model=schemas.GenericResponse[schemas.RegisterResponse])
 def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user_data.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
-    # 2. Hash and Save
     hashed_pwd = security.hash_password(user_data.password)
     new_user = models.User(
         email=user_data.email,
         password_hash=hashed_pwd,
         role=user_data.role
     )
+    new_role = user_data.role
+    if(user_data.role == UserRole.PATIENT):
+        new_role = models.Patient(
+            full_name = user_data.fullName, 
+            email = user_data.email,
+            password_hash = hashed_pwd,
+            contact_number = user_data.contact_number,
+            gender = user_data.gender
+        )  
+    elif(user_data.role == UserRole.DOCTOR):
+         new_role = models.Doctor(
+            full_name = user_data.fullName, 
+            email = user_data.email,
+            password_hash = hashed_pwd,
+            contact_number = user_data.contact_number,
+            gender = user_data.gender
+        )  
+    else:   
+         new_role = models.Admin(
+            full_name = user_data.fullName, 
+            email = user_data.email,
+            password_hash = hashed_pwd,
+        )  
     db.add(new_user)
+    db.add(new_role)
     db.commit()
     db.refresh(new_user)
+    db.refresh(new_role)
+
+    user_out = schemas.UserOut.model_validate(new_user)
+    if user_data.role == UserRole.PATIENT:
+        role_out = schemas.PatientAuthOut.model_validate(new_role)
+    elif user_data.role == UserRole.DOCTOR:
+        role_out = schemas.DoctorAuthOut.model_validate(new_role)
+    else:
+        role_out = schemas.AdminAuthOut.model_validate(new_role)
+    # print(f"Registered new user: {user_out} with role {role_out}")
     return {
         "status_code": 201,
-        "message": "User registered successfully",
-        "data": new_user
+        "message": f"A new {user_data.role.value} registered successfully",
+        "data": schemas.RegisterResponse(user=user_out, role=role_out),
     }
+
+
 
 @router.post("/login", response_model=schemas.GenericResponse[schemas.LoginResponse])
 def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
+
     user = db.query(models.User).filter(models.User.email == login_data.email).first()
     if not user or not security.verify_password(login_data.password, user.password_hash):
         raise HTTPException(
@@ -37,23 +74,33 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if(user.role != login_data.role):
-         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"this email is not registered as {login_data.role.value}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    # checking if this role exist in the respected roles tables
+    if(user.role == UserRole.PATIENT):
+        role_data = db.query(models.Patient).filter(models.Patient.email == user.email).first()
+        if not role_data:
+            raise HTTPException(status_code=400, detail="Patient profile not found"
+                                )
+    
+    elif(user.role == UserRole.DOCTOR):
+        role_data = db.query(models.Doctor).filter(models.Doctor.email == user.email).first()
+        if not role_data:
+            raise HTTPException(status_code=400, detail="Doctor profile not found"
+                                )
+    else : 
+        role_data = db.query(models.Admin).filter(models.Admin.email == user.email).first()
+        if not role_data:
+            raise HTTPException(status_code=400, detail="Admin profile not found"
+                                )    
     # 3. Generate Token
     access_token = security.create_access_token(
         data={"sub": user.email, "role": user.role}
     )
+    user_out = schemas.UserOut.model_validate(user)
     
     return {
         "status_code": 200,
         "message": "User logged in successfully",
-        "data": {
-            "user" : user,
-            "access_token": access_token,}
+        "data": schemas.LoginResponse(user=user_out, access_token=access_token),
     }
 
 

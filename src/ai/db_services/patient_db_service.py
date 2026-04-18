@@ -1,6 +1,39 @@
 from sqlalchemy import text
 from src.backend.database.db_connection import get_db
 
+def get_patient_by_id(patient_id):
+    """
+    Fetch patient record by patient_id from patients table
+    """
+    db = get_db()
+
+    try:
+        query = text("""
+            SELECT patient_id, full_name, email, age, gender, contact_number 
+            FROM patients 
+            WHERE patient_id = :patient_id
+        """)
+
+        result = db.execute(query, {"patient_id": patient_id}).fetchone()
+        if result:
+            return {
+                "id": result[0],
+                "name": result[1],
+                "email": result[2],
+                "age": result[3],
+                "gender": result[4],
+                "phone": result[5]
+            }
+
+        return None
+
+    except Exception as e:
+        print(f"Error fetching patient: {str(e)}")
+        return None
+
+    finally:
+        db.close()
+
 def create_patient_if_not_exists(patient):
     db = get_db()
 

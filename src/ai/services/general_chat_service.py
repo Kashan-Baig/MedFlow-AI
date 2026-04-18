@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
-from src.ai.db_services.doctor_service import get_doctors_by_speciality_and_days
+from src.ai.db_services.doctor_service import get_doctors_by_speciality
 
 load_dotenv()
 
@@ -80,7 +80,7 @@ def fetch_doctors_by_speciality(speciality: str):
 
     all_doctors = {}
     days = get_next_7_days()
-    daily_map = get_doctors_by_speciality_and_days(speciality, days)
+    daily_map = get_doctors_by_speciality(speciality)
 
     for day in days:
         doctors = daily_map.get(day, [])

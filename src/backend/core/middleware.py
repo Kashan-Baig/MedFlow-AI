@@ -78,3 +78,5 @@ def get_current_patient(user: dict = Depends(get_current_user)) -> dict:
     if str(user.get("role")).lower() != "patient":
         raise HTTPException(status_code=403, detail="Not authorized as patient")
     return user
+
+

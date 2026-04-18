@@ -140,6 +140,7 @@ def get_patients_by_doctor_id(doctor_id):
         """
         )
         result = db.execute(query, {"doctor_id": doctor_id}).fetchall()
+        print(type(result))
         return [dict(row._mapping) for row in result]
     finally:
         db.close()

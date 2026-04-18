@@ -100,7 +100,6 @@ def general_chat(user_input: str , patient_info: dict = None):
     patient_context = ""
     if patient_info:
         patient_context = f"\nYou are currently talking to: {patient_info['name']}, a {patient_info['age']} year old {patient_info['gender']}."
-        
     # =========================
     # 1. HANDLE DOCTOR QUERIES (DB)
     # =========================

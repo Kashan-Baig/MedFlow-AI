@@ -47,7 +47,6 @@ def safe_input(prompt):
 # =========================
 def chat_workflow(patient_id:str):
 
-
     session_id = create_session({})
     session = get_session(session_id)
     session["patient_id"] = patient_id
@@ -61,7 +60,6 @@ def chat_workflow(patient_id:str):
     # =========================
     session["mode"] = "idle"
     session["stage"] = None
-    session["patient_info"] = {}
 
     # =====================================================
     # LOOP
@@ -242,7 +240,7 @@ def chat_workflow(patient_id:str):
             print("\n📅 Finding appointment...\n")
 
             try:
-                appointment = book_appointment(
+                appointment = db_service. book_appointment(
                     session_id,
                     session.get("last_insight")
                 )

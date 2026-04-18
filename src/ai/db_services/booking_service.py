@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import json, re
 
 from src.ai.db_services.appointment_db_service import create_appointment
-from src.ai.db_services.doctor_service import get_doctors_by_speciality_and_days
+from src.ai.db_services.doctor_service import get_doctors_by_speciality
 
 
 # =========================
@@ -55,6 +55,7 @@ def normalize_speciality(text):
     return text.split("/")[0].title()
 
 
+
 # =========================
 # MAIN BOOKING FUNCTION
 # =========================
@@ -75,26 +76,16 @@ def book_appointment(session_id, insight):
 
     print(f"\n🩺 Recommended Specialist: {speciality}")
 
-    next_days = [
-        (datetime.now() + timedelta(days=i)).strftime("%A")
-        for i in range(7)
-    ]
-
-    # Precompute dates (optimization)
-    day_date_map = {
-        day: get_next_date_for_day(day)
-        for day in next_days
-    }
+    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
     slot_map = []
-    print("\n📅 Available Slots in the Next Week:\n")
+    print("\n📅 Available Slots:\n")
 
     count = 1 
-    available_doctors_by_day = get_doctors_by_speciality_and_days(speciality, next_days)
+    available_doctors_by_day = get_doctors_by_speciality(speciality)
     
-    for day in next_days:
+    for day in days:
         available_doctors = available_doctors_by_day.get(day, [])
-        date = day_date_map[day]
 
         for doc in available_doctors:
             # IMPORTANT FIX: use DB arrays directly (safe loop)
@@ -104,12 +95,11 @@ def book_appointment(session_id, insight):
                 slot_map.append({
                     "doctor": doc,
                     "day": day,
-                    "date": date,
                     "time_slot": time_slot,
                     "slot_id": slot_id
                 })
                 print(
-                    f"{count}. {day} ({date}) - {time_slot} - {doc['name']}"
+                    f"{count}. {day} - {time_slot} - {doc['name']}"
                 )
                 count += 1
 
@@ -128,7 +118,6 @@ def book_appointment(session_id, insight):
 
     doctor = selected["doctor"]
     day = selected["day"]
-    date = selected["date"]
     time_slot = selected["time_slot"]
     slot_id = selected["slot_id"]
 
@@ -136,7 +125,6 @@ def book_appointment(session_id, insight):
     print(f"Doctor: {doctor['name']}")
     print(f"Speciality: {speciality}")
     print(f"Day: {day}")
-    print(f"Date: {date}")
     print(f"Time: {time_slot}")
     print(f"Slot ID: {slot_id}")
 
@@ -159,15 +147,19 @@ def book_appointment(session_id, insight):
     appointment_id = create_appointment(
         patient_id=patient_id,
         doctor_id=doctor["id"],
-        slot_id=slot_id
+        slot_id=slot_id,
+        target_date=get_next_date_for_day(day)
     )
+    if appointment_id == "Slot is already full":
+        return {
+            "error": "Slot is already full",
+        }
 
     appointment_data = {
         "appointment_id": appointment_id,
         "doctor": doctor["name"],
         "speciality": speciality,
         "day": day,
-        "date": str(date),
         "time_slot": time_slot,
         "status": "confirmed"
     }

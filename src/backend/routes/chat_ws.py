@@ -18,8 +18,9 @@ from src.ai.services.rag_service import get_relevant_context
 from src.ai.utils.session_store import create_session, add_conversation, get_session
 from src.ai.utils.doctor_store import doctors
 from src.ai.db_services.booking_service import (
-    parse_insight, normalize_speciality, get_next_7_days, get_next_date_for_day
+    parse_insight, normalize_speciality, get_next_date_for_day
 )
+from src.ai.services.general_chat_service import get_next_7_days
 from src.ai.db_services.appointment_db_service import create_appointment
 from src.ai.db_services.consultation_db_service import save_consultation_record
 router = APIRouter()

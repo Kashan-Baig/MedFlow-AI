@@ -4,8 +4,12 @@ from jose import JWTError, jwt
 import bcrypt
 import os
 from dotenv import load_dotenv
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 load_dotenv()
+
+security_scheme = HTTPBearer()
 
 # Configuration from .env
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -35,3 +39,24 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security_scheme)):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token"
+        )
+
+#getting current user's role
+def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(security_scheme)):
+    payload = get_current_user(credentials)
+    if payload.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Admins only."
+        )
+    return payload

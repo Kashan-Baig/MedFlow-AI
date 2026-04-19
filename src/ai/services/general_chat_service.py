@@ -95,7 +95,15 @@ def fetch_doctors_by_speciality(speciality: str):
 # =========================
 # MAIN GENERAL CHAT
 # =========================
-def general_chat(user_input: str , patient_info: dict = None):
+def general_chat(user_input: str , patient_info: dict = None, chat_history=None):
+
+    history_text = ""
+
+    if chat_history:
+        history_text = "\n".join([
+            f"User: {c['symptoms']}\nAssistant: {c['response']}"
+            for c in chat_history[-5:]   # last 5 only
+        ])
 
     patient_context = ""
     if patient_info:
@@ -153,6 +161,7 @@ SYSTEM FEATURES:
 - Verified specialists
 
 IMPORTANT RULES:
+- Use previous conversation for context if available
 - Keep responses SHORT and clear
 - Be professional and friendly
 - If user asks about doctors → suggest checking availability
@@ -161,6 +170,9 @@ IMPORTANT RULES:
 
 GOAL:
 Encourage users to use the AI symptom analysis for best results.
+
+CHAT HISTORY:
+{history_text}
 
 User:
 {user_input}

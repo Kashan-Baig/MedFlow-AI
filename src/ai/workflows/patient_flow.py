@@ -30,6 +30,8 @@ from src.ai.services.insight_service import (
 from src.ai.services.intent_service import detect_intent
 from src.ai.services.general_chat_service import general_chat, INTRO_MESSAGE
 
+from src.ai.db_services.med_history_service import get_medical_history
+
 
 # =========================
 # SAFE INPUT
@@ -45,16 +47,23 @@ def safe_input(prompt):
 # =========================
 # MAIN WORKFLOW
 # =========================
-def chat_workflow(patient_id:str):
+def chat_workflow(patient_id: str):
 
     session_id = create_session({})
     session = get_session(session_id)
-    session["patient_id"] = patient_id
-    patient_info = db_service.get_patient_by_id(patient_id)
 
-    # storing the patient info for the session
+    session["patient_id"] = patient_id
+
+    # Fetch patient info
+    patient_info = db_service.get_patient_by_id(patient_id)
     session["patient_info"] = patient_info or {}
+
+    # Fetch medical history
+    medical_history = get_medical_history(patient_id)
+    session["medical_history"] = medical_history
+
     print(f"\nWelcome back, {patient_info['name']}! " + INTRO_MESSAGE)
+
     # =========================
     # STATE INIT
     # =========================
@@ -69,11 +78,14 @@ def chat_workflow(patient_id:str):
         user_input = safe_input("\nYou: ")
         session = get_session(session_id)
 
+        chat_history = session.get("conversations", [])
+
+
         mode = session.get("mode", "idle")
         stage = session.get("stage")
 
         # =====================================================
-        # 🟢 IDLE MODE (CHAT)
+        # 🟢 IDLE MODE (GENERAL CHAT)
         # =====================================================
         if mode == "idle":
 
@@ -85,92 +97,26 @@ def chat_workflow(patient_id:str):
             if intent == "medical":
                 session["mode"] = "medical"
                 session["stage"] = "symptom"
-                print("\n Describe your symptoms:")
+                print("\n🤒 Describe your symptoms:")
                 continue
 
             print("\n🤖 Assistant:")
-            print(general_chat(user_input , session["patient_info"]))
+            ai_response = general_chat(user_input, session["patient_info"],chat_history=chat_history)
+            print(ai_response)
+
+            add_conversation(
+                session_id=session_id,
+                symptoms=user_input,      # reuse field
+                insight="general",        # mark type
+                response=ai_response,
+                timestamp=str(datetime.now())
+            )
+
             continue
 
         # =====================================================
         # 🔴 MEDICAL MODE
         # =====================================================
-
-        # -------------------------
-        # NAME
-        # -------------------------
-        # if stage == "collect_name":
-        #     if validate_name(user_input):
-        #         session["patient_info"]["name"] = user_input
-        #         session["stage"] = "collect_email"
-        #         print("📧 Enter email:")
-        #     else:
-        #         print("❌ Invalid name")
-        #     continue
-
-        # # -------------------------
-        # # EMAIL
-        # # -------------------------
-        # if stage == "collect_email":
-        #     if validate_email(user_input):
-        #         session["patient_info"]["email"] = user_input
-        #         session["stage"] = "collect_age"
-        #         print("🎂 Enter age:")
-        #     else:
-        #         print("❌ Invalid email")
-        #     continue
-
-        # # -------------------------
-        # # AGE
-        # # -------------------------
-        # if stage == "collect_age":
-        #     if validate_age(user_input):
-        #         session["patient_info"]["age"] = user_input
-        #         session["stage"] = "collect_gender"
-        #         print("⚧ Gender:")
-        #     else:
-        #         print("❌ Invalid age")
-        #     continue
-
-        # # -------------------------
-        # # GENDER
-        # # -------------------------
-        # if stage == "collect_gender":
-        #     if validate_gender(user_input.lower()):
-        #         session["patient_info"]["gender"] = user_input.lower()
-        #         session["stage"] = "collect_phone"
-        #         print("📱 Phone:")
-        #     else:
-        #         print("❌ Invalid gender")
-        #     continue
-
-        # # -------------------------
-        # # PHONE
-        # # -------------------------
-        # if stage == "collect_phone":
-        #     if validate_phone(user_input):
-
-        #         session["patient_info"]["phone"] = user_input
-
-        #         try:
-        #             patient_obj = process_patient_input({
-        #                 **session["patient_info"],
-        #                 "symptoms": "initial"
-        #             })
-
-        #             patient_id = create_patient_if_not_exists(patient_obj)
-        #             session["patient_id"] = patient_id
-
-        #             print(f"\n✅ Registered (ID: {patient_id})")
-
-        #         except Exception as e:
-        #             print(f"⚠️ DB Warning: {str(e)}")
-
-        #         session["stage"] = "symptom"
-        #         print("\n🤒 Describe your symptoms:")
-        #     else:
-        #         print("❌ Invalid phone")
-        #     continue
 
         # =====================================================
         # 🧠 SYMPTOM ANALYSIS
@@ -184,9 +130,18 @@ def chat_workflow(patient_id:str):
 
             try:
                 patient = process_patient_input(raw_data)
+
+                # RAG context
                 context = get_relevant_context(patient)
 
-                insight_json = generate_insights(patient, context)
+                # Insight with medical history
+                insight_json = generate_insights(
+                    patient,
+                    context,
+                    medical_history=session.get("medical_history")
+                )
+
+                # Human-readable response
                 response = generate_patient_response(patient, insight_json)
 
                 session["last_insight"] = insight_json
@@ -206,13 +161,12 @@ def chat_workflow(patient_id:str):
                 timestamp=str(datetime.now())
             )
 
-            # ⭐ IMPORTANT FIX: ASK + MOVE TO AWAIT STATE
             print("\n❓ Do you have more symptoms? (yes/no)")
             session["stage"] = "await_followup"
             continue
 
         # =====================================================
-        # ⏳ AWAIT FOLLOWUP (THIS FIXES YOUR ISSUE)
+        # ⏳ FOLLOW-UP
         # =====================================================
         if stage == "await_followup":
 
@@ -224,11 +178,8 @@ def chat_workflow(patient_id:str):
                 continue
 
             elif answer in ["no", "n"]:
-                # DON'T just set stage and continue - fall through to booking
                 session["stage"] = "booking"
                 stage = "booking"
-                # Remove continue here so it falls through to booking logic below
-
             else:
                 print("❌ Please answer yes or no.")
                 continue
@@ -237,10 +188,11 @@ def chat_workflow(patient_id:str):
         # 📅 BOOKING
         # =====================================================
         if stage == "booking":
+
             print("\n📅 Finding appointment...\n")
 
             try:
-                appointment = db_service. book_appointment(
+                appointment = db_service.book_appointment(
                     session_id,
                     session.get("last_insight")
                 )
@@ -257,11 +209,10 @@ def chat_workflow(patient_id:str):
             except Exception as e:
                 print(f"❌ Booking error: {str(e)}")
 
-            # RESET CLEANLY
+            # Reset only necessary fields
             session["mode"] = "idle"
             session["stage"] = None
             session["last_insight"] = None
-            session["patient_info"] = {}
 
             print("\n💬 You can continue chatting.")
             continue
@@ -271,4 +222,4 @@ def chat_workflow(patient_id:str):
 # RUN
 # =========================
 if __name__ == "__main__":
-    chat_workflow(61)
+    chat_workflow(65)

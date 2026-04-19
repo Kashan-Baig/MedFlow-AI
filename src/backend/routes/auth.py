@@ -56,13 +56,4 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
             "access_token": access_token,}
     }
 
-from src.backend.core.middleware import get_current_user
-
-@router.get("/me")
-def get_me(user: dict = Depends(get_current_user)):
-    return {
-        "status": "success",
-        "data": user
-    }
-
 

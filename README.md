@@ -9,6 +9,27 @@ uv run python -m src.ai.workflows.patient_flow
 ### to run backend run 
 uv run uvicorn main:app --reload
 
+### database schema changes during development
+
+When you change SQLAlchemy models, existing PostgreSQL tables are not automatically altered.
+`create_all()` only creates missing tables, it does not add/remove/rename existing columns.
+
+Use this helper:
+
+```bash
+# only create missing tables
+uv run python -m src.backend.database.dev_db create
+
+# update patient/doctor/admin table columns from current models (no drop)
+uv run python -m src.backend.database.dev_db alter-auth
+
+# reset everything (drop + recreate all tables)
+uv run python -m src.backend.database.dev_db reset --yes
+```
+
+For active development, `reset --yes` is usually the easiest repeatable method.
+Do not use reset in production because it deletes data.
+
 
 ## ⚙️ Setup Instructions
 

@@ -15,9 +15,9 @@ app = FastAPI(title="MedFlow AI")
 api_v1 = APIRouter(prefix="/api/v1")
 
 
-api_v1.include_router(patient_routes.router, prefix="/patient")
-api_v1.include_router(admin_routes.router, prefix="/admin")
-api_v1.include_router(doctor_routes.router, prefix="/doctor")
+api_v1.include_router(patient_routes.router)
+api_v1.include_router(admin_routes.router)
+api_v1.include_router(doctor_routes.router)
 api_v1.include_router(auth.router)
 
 # Web Sockets

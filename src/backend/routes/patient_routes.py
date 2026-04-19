@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -7,7 +8,8 @@ from jose import jwt
 from src.backend.database.db_connection import get_db
 from src.backend.core.middleware import get_current_admin,get_current_user
 
-router = APIRouter()
+router = APIRouter(prefix="/patient", tags=["Patient"])
+import src.ai.db_services.db_services as db_service
 
 
 @router.post("/consult")
@@ -61,3 +63,12 @@ def get_single_user(
         "status": "success",
         "data": user_data
     }
+
+
+@router.get("/appointments")
+def get_appointments_by_id(patient_id: int):
+    return {
+        "status_code": 200,
+        "message": "Appointments fetched successfully",
+        "data": db_service.get_appointments_by_patient_id(patient_id)
+    } 

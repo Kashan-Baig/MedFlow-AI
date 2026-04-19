@@ -1,12 +1,17 @@
 import json
-import os
 import sys
 from datetime import datetime
 
-from src.ai.db_services.patient_db_service import create_patient_if_not_exists
-from src.ai.db_services.booking_service import book_appointment
-from src.ai.db_services.consultation_db_service import save_consultation_record
-from src.ai.utils.session_store import create_session, add_conversation, get_session
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
+import src.ai.db_services.db_services as db_service
+from src.ai.utils.session_store import (
+    create_session,
+    add_conversation,
+    get_session
+)
+
 from src.ai.services.input_service import (
     process_patient_input,
     validate_age,
@@ -15,240 +20,255 @@ from src.ai.services.input_service import (
     validate_email,
     validate_phone
 )
+
 from src.ai.services.rag_service import get_relevant_context
 from src.ai.services.insight_service import (
     generate_insights,
     generate_patient_response
 )
 
-LOG_FILE = "C:\\Users\\amtul\\Desktop\\MedFlow-AI\\ai_logs.json"
+from src.ai.services.intent_service import detect_intent
+from src.ai.services.general_chat_service import general_chat, INTRO_MESSAGE
 
-def save_session(session_id):
-    session = get_session(session_id)
 
-    if not session:
-        return
-
-    log_entry = {
-        "timestamp": str(datetime.now()),
-        "session": session
-    }
-
-    if os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "r") as f:
-            data = json.load(f)
-    else:
-        data = []
-
-    data.append(log_entry)
-
-    with open(LOG_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
+# =========================
+# SAFE INPUT
+# =========================
 def safe_input(prompt):
     value = input(prompt).strip()
     if value.lower() in ["exit", "quit"]:
-        print("\n👋 Session ended by user.")
+        print("\n👋 Session ended.")
         sys.exit(0)
     return value
 
+
 # =========================
-# MAIN CHAT WORKFLOW
+# MAIN WORKFLOW
 # =========================
-def chat_workflow():
+def chat_workflow(patient_id:str):
 
-    print("\n🏥 Welcome to MedFlow AI Medical Assistant")
-    print("Type 'exit' anytime to quit\n")
+    session_id = create_session({})
+    session = get_session(session_id)
+    session["patient_id"] = patient_id
+    patient_info = db_service.get_patient_by_id(patient_id)
 
+    # storing the patient info for the session
+    session["patient_info"] = patient_info or {}
+    print(f"\nWelcome back, {patient_info['name']}! " + INTRO_MESSAGE)
     # =========================
-    # STEP 1 PATIENT INFO (SMART VALIDATION)
+    # STATE INIT
     # =========================
+    session["mode"] = "idle"
+    session["stage"] = None
 
-    # NAME
+    # =====================================================
+    # LOOP
+    # =====================================================
     while True:
-        name = safe_input("👤 Enter your full name: ")
-        if validate_name(name):
-            break
-        print("❌ Invalid name. Try again.")
 
-    # EMAIL
-    while True:
-        email = safe_input("📧 Enter your email: ")
-        if validate_email(email):
-            break
-        print("❌ Invalid email format.")
-
-    # AGE
-    while True:
-        age = safe_input("🎂 Enter your age: ")
-        if validate_age(age):
-            break
-        print("❌ Age must be between 1–120.")
-
-    # GENDER
-    while True:
-        gender = safe_input("⚧ Enter your gender (male/female): ").lower()
-        if validate_gender(gender):
-            break
-        print("❌ Only 'male' or 'female' allowed.")
-
-    # PHONE
-    while True:
-        phone = safe_input("📱 Enter your phone number: ")
-        if validate_phone(phone):
-            break
-        print("❌ Invalid phone number.")
-
-    patient_info = {
-        "name": name,
-        "age": age,
-        "gender": gender,
-        "email": email,
-        "phone": phone
-    }
-
-    session_id = create_session(patient_info)
-
-    # =========================
-    # CREATE PATIENT IN DB
-    # =========================
-    try:
-        patient_obj = process_patient_input({
-            **patient_info,
-            "symptoms": "initial"
-        })
-
-        patient_id = create_patient_if_not_exists(patient_obj)
-
+        user_input = safe_input("\nYou: ")
         session = get_session(session_id)
-        session["patient_id"] = patient_id   
 
-        print(f"\n✅ Patient registered with ID: {patient_id}")
+        mode = session.get("mode", "idle")
+        stage = session.get("stage")
 
-    except Exception as e:
-        print(f"\n❌ DB Error: {str(e)}")
-        patient_id = None
-
-    print("\n✅ Thanks! Now tell me your symptoms.")
-
-    # =========================
-    # CHAT LOOP
-    # =========================
-    while True:
-
-        symptoms = safe_input("\n🤒 Enter symptoms: ")
-
-        # ✅ CREATE RAW DATA
-        raw_data = {
-            "name": name,
-            "age": age,
-            "gender": gender,
-            "email": email,
-            "phone": phone,
-            "symptoms": symptoms
-        }
-
-        try:
-            patient = process_patient_input(raw_data)
-
-        except Exception as e:
-            print(f"\n❌ Input Error: {str(e)}")
-            continue
-
-        # =========================
-        # AI PIPELINE
-        # =========================
-        print("\n🧠 Analyzing your symptoms...\n")
-
-        try:
-            context = get_relevant_context(patient)
-            insight_json = generate_insights(patient, context)
-            response = generate_patient_response(patient, insight_json)
-
-        except Exception as e:
-            print(f"\n❌ AI Error: {str(e)}")
-            continue
-
-        # =========================
-        # OUTPUT
-        # =========================
-        print("\n🤖 AI DOCTOR RESPONSE:")
-        print(response)
-
-        print("\n🧠 INTERNAL INSIGHT:")
-        print(insight_json)
-
-        # =========================
-        # ADD TO SESSION CONVERSATION
-        # =========================
-        add_conversation(
-            session_id=session_id,
-            symptoms=symptoms,
-            insight=insight_json,
-            response=response,
-            timestamp=str(datetime.now())
-        )
-
-        # =========================
-        # FOLLOW-UP LOOP
-        # =========================
-        follow_up = safe_input(
-            "\n❓ Do you have any more symptoms or questions? (yes/no): "
-        ).lower()
-
-        if follow_up in ["yes", "y"]:
-            print("\n➡️ Okay, tell me more.")
-            continue
-
-        # =========================
-        # APPOINTMENT FLOW
-        # =========================
-        book = safe_input(
-            "\n🏥 Would you like to book an appointment with a doctor? (yes/no): "
-        ).lower()
-
-        if book in ["yes", "y"]:
-            print("\n📅 Booking process started...")
+        # =====================================================
+        # 🟢 IDLE MODE (CHAT)
+        # =====================================================
+        if mode == "idle":
 
             try:
-                # ✅ call booking service
-                appointment = book_appointment(session_id, insight_json)
+                intent = detect_intent(user_input)
+            except:
+                intent = "general"
 
-                # ✅ handle response
+            if intent == "medical":
+                session["mode"] = "medical"
+                session["stage"] = "symptom"
+                print("\n Describe your symptoms:")
+                continue
+
+            print("\n🤖 Assistant:")
+            print(general_chat(user_input , session["patient_info"]))
+            continue
+
+        # =====================================================
+        # 🔴 MEDICAL MODE
+        # =====================================================
+
+        # -------------------------
+        # NAME
+        # -------------------------
+        # if stage == "collect_name":
+        #     if validate_name(user_input):
+        #         session["patient_info"]["name"] = user_input
+        #         session["stage"] = "collect_email"
+        #         print("📧 Enter email:")
+        #     else:
+        #         print("❌ Invalid name")
+        #     continue
+
+        # # -------------------------
+        # # EMAIL
+        # # -------------------------
+        # if stage == "collect_email":
+        #     if validate_email(user_input):
+        #         session["patient_info"]["email"] = user_input
+        #         session["stage"] = "collect_age"
+        #         print("🎂 Enter age:")
+        #     else:
+        #         print("❌ Invalid email")
+        #     continue
+
+        # # -------------------------
+        # # AGE
+        # # -------------------------
+        # if stage == "collect_age":
+        #     if validate_age(user_input):
+        #         session["patient_info"]["age"] = user_input
+        #         session["stage"] = "collect_gender"
+        #         print("⚧ Gender:")
+        #     else:
+        #         print("❌ Invalid age")
+        #     continue
+
+        # # -------------------------
+        # # GENDER
+        # # -------------------------
+        # if stage == "collect_gender":
+        #     if validate_gender(user_input.lower()):
+        #         session["patient_info"]["gender"] = user_input.lower()
+        #         session["stage"] = "collect_phone"
+        #         print("📱 Phone:")
+        #     else:
+        #         print("❌ Invalid gender")
+        #     continue
+
+        # # -------------------------
+        # # PHONE
+        # # -------------------------
+        # if stage == "collect_phone":
+        #     if validate_phone(user_input):
+
+        #         session["patient_info"]["phone"] = user_input
+
+        #         try:
+        #             patient_obj = process_patient_input({
+        #                 **session["patient_info"],
+        #                 "symptoms": "initial"
+        #             })
+
+        #             patient_id = create_patient_if_not_exists(patient_obj)
+        #             session["patient_id"] = patient_id
+
+        #             print(f"\n✅ Registered (ID: {patient_id})")
+
+        #         except Exception as e:
+        #             print(f"⚠️ DB Warning: {str(e)}")
+
+        #         session["stage"] = "symptom"
+        #         print("\n🤒 Describe your symptoms:")
+        #     else:
+        #         print("❌ Invalid phone")
+        #     continue
+
+        # =====================================================
+        # 🧠 SYMPTOM ANALYSIS
+        # =====================================================
+        if stage == "symptom":
+
+            raw_data = {
+                **session.get("patient_info", {}),
+                "symptoms": user_input
+            }
+
+            try:
+                patient = process_patient_input(raw_data)
+                context = get_relevant_context(patient)
+
+                insight_json = generate_insights(patient, context)
+                response = generate_patient_response(patient, insight_json)
+
+                session["last_insight"] = insight_json
+
+            except Exception as e:
+                print(f"❌ Medical error: {str(e)}")
+                continue
+
+            print("\n🤖 MedFlow AI Doctor:")
+            print(response)
+
+            add_conversation(
+                session_id=session_id,
+                symptoms=user_input,
+                insight=insight_json,
+                response=response,
+                timestamp=str(datetime.now())
+            )
+
+            # ⭐ IMPORTANT FIX: ASK + MOVE TO AWAIT STATE
+            print("\n❓ Do you have more symptoms? (yes/no)")
+            session["stage"] = "await_followup"
+            continue
+
+        # =====================================================
+        # ⏳ AWAIT FOLLOWUP (THIS FIXES YOUR ISSUE)
+        # =====================================================
+        if stage == "await_followup":
+
+            answer = user_input.lower()
+
+            if answer in ["yes", "y"]:
+                session["stage"] = "symptom"
+                print("➡️ Tell me more symptoms.")
+                continue
+
+            elif answer in ["no", "n"]:
+                # DON'T just set stage and continue - fall through to booking
+                session["stage"] = "booking"
+                stage = "booking"
+                # Remove continue here so it falls through to booking logic below
+
+            else:
+                print("❌ Please answer yes or no.")
+                continue
+
+        # =====================================================
+        # 📅 BOOKING
+        # =====================================================
+        if stage == "booking":
+            print("\n📅 Finding appointment...\n")
+
+            try:
+                appointment = db_service. book_appointment(
+                    session_id,
+                    session.get("last_insight")
+                )
+
                 if "error" in appointment:
                     print(f"❌ {appointment['error']}")
                 else:
                     print("\n✅ Appointment Confirmed!")
                     print(f"👨‍⚕️ Doctor: {appointment['doctor']}")
-                    print(f"🩺 Specialist: {appointment['speciality']}")
+                    print(f"🩺 Speciality: {appointment['speciality']}")
                     print(f"📅 Day: {appointment['day']}")
                     print(f"⏰ Time: {appointment['time_slot']}")
-                    print(f"📌 Status: {appointment['status']}")
-
-                    # =========================
-                    # SAVE CONSULTATION
-                    # =========================
-                    record_id = save_consultation_record(
-                        appointment["appointment_id"],
-                        insight_json,
-                        response
-                    )
-
-                    print(f"\n📄 Consultation saved (ID: {record_id})")
 
             except Exception as e:
-                print(f"\n❌ Booking Error: {str(e)}")
+                print(f"❌ Booking error: {str(e)}")
 
-        else:
-            print("\n👍 Okay. Take care and stay healthy!")
+            # RESET CLEANLY
+            session["mode"] = "idle"
+            session["stage"] = None
+            session["last_insight"] = None
+            session["patient_info"] = {}
 
-        print("\n👋 Session ended.")
-        save_session(session_id)
-        break
+            print("\n💬 You can continue chatting.")
+            continue
 
 
 # =========================
 # RUN
 # =========================
 if __name__ == "__main__":
-    chat_workflow()
+    chat_workflow(61)

@@ -16,6 +16,18 @@
             color: #00d2ff;
         }
 
+        .user-id-box {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #16213e;
+            border-radius: 8px;
+        }
+
+        .user-id-box input {
+            width: 150px;
+            margin-right: 10px;
+        }
+
         #chat {
             height: 400px;
             overflow-y: auto;
@@ -42,12 +54,15 @@
         }
 
         input {
-            width: 75%;
             padding: 10px;
             border-radius: 6px;
             border: 1px solid #333;
             background: #0f3460;
             color: #fff;
+        }
+
+        #msg {
+            width: 75%;
         }
 
         button {
@@ -57,81 +72,181 @@
             border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
+            color: #000;
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
         }
 
         #status {
             margin-bottom: 10px;
             font-size: 14px;
         }
+
+        .connect-btn {
+            background: #a8ff78;
+        }
+
+        .disconnect-btn {
+            background: #ff6b6b;
+        }
+
+        pre {
+            background: #0f3460;
+            padding: 8px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
     </style>
 </head>
 
 <body>
     <h2>🏥 MedFlow AI - WebSocket Tester</h2>
-    <div id="status">⏳ Connecting...</div>
+    
+    <!-- User ID Input -->
+    <div class="user-id-box">
+        <label>Patient ID:</label>
+        <input id="userId" type="number" placeholder="e.g., 65" value="65" />
+        <button class="connect-btn" onclick="connect()" id="connectBtn">Connect</button>
+        <button class="disconnect-btn" onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+    </div>
+
+    <div id="status">⏳ Not connected</div>
     <div id="chat"></div>
-    <input id="msg" placeholder="Type your message..." onkeypress="if(event.key==='Enter') send()" />
-    <button onclick="send()">Send</button>
+    <input id="msg" placeholder="Type your message..." onkeypress="if(event.key==='Enter') send()" disabled />
+    <button onclick="send()" id="sendBtn" disabled>Send</button>
 
     <script>
         const chat = document.getElementById('chat');
         const status = document.getElementById('status');
         const input = document.getElementById('msg');
-
-        // Connect to your WebSocket endpoint
-        const ws = new WebSocket('ws://127.0.0.1:8000/api/v1/ws/patient/chat');
-
-        ws.onopen = () => {
-            status.textContent = '✅ Connected!';
-            status.style.color = '#a8ff78';
-        };
-
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
+        const userIdInput = document.getElementById('userId');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+    
+        let ws = null;
+        let currentStep = null;
+    
+        function log(type, content) {
+            console.log(type, content);
+        }
+    
+        function addMessage(cls, html) {
             const div = document.createElement('div');
-            div.className = 'msg-server';
-            div.textContent = `🤖 [${data.step}]: ${data.message}`;
+            div.className = cls;
+            div.innerHTML = html;
             chat.appendChild(div);
-
-            // If there's an insight, show it
-            if (data.insight) {
-                const insightDiv = document.createElement('div');
-                insightDiv.className = 'msg-server';
-                insightDiv.textContent = `📊 Insight: ${typeof data.insight === 'string' ? data.insight : JSON.stringify(data.insight, null, 2)}`;
-                chat.appendChild(insightDiv);
-            }
-
-            chat.scrollTop = chat.scrollHeight;
-        };
-
-        ws.onerror = () => {
-            status.textContent = '❌ Connection error!';
-            status.style.color = '#ff6b6b';
-        };
-
-        ws.onclose = () => {
-            status.textContent = '🔌 Disconnected';
-            status.style.color = '#ff6b6b';
-        };
-
-        function send() {
-            const msg = input.value.trim();
-            if (!msg) return;
-
-            const div = document.createElement('div');
-            div.className = 'msg-user';
-            div.textContent = `👤 You: ${msg}`;
-            chat.appendChild(div);
-
-            ws.send(msg);
-            input.value = '';
             chat.scrollTop = chat.scrollHeight;
         }
+    
+        function connect() {
+            const userId = userIdInput.value.trim();
+    
+            if (!userId) {
+                alert('Enter Patient ID');
+                return;
+            }
+    
+            if (ws) ws.close();
+    
+            chat.innerHTML = '';
+    
+            status.textContent = '⏳ Connecting...';
+            status.style.color = '#00d2ff';
+    
+            ws = new WebSocket(`ws://127.0.0.1:8000/api/v1/ws/patient/chat?id=${userId}`);
+    
+            ws.onopen = () => {
+                status.textContent = `✅ Connected (Patient ${userId})`;
+                status.style.color = '#a8ff78';
+    
+                input.disabled = false;
+                sendBtn.disabled = false;
+    
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                userIdInput.disabled = true;
+            };
+    
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+    
+                log("RECEIVED", data);
+    
+                currentStep = data.step;
+    
+                // MAIN MESSAGE
+                addMessage(
+                    'msg-server',
+                    `🤖 <b>${data.step}</b><br>${data.message?.replace(/\n/g, "<br>")}`
+                );
+    
+                // INSIGHT DEBUG
+                if (data.insight) {
+                    addMessage(
+                        'msg-server',
+                        `📊 <b>Insight</b><pre>${JSON.stringify(data.insight, null, 2)}</pre>`
+                    );
+                }
+    
+                // SLOT LIST DEBUG (IMPORTANT FIX)
+                if (data.slots && Array.isArray(data.slots)) {
+                    addMessage(
+                        'msg-server',
+                        `📅 <b>${data.slots.length} Slots Received</b><br>` +
+                        data.slots.map(s =>
+                            `${s.slot_number}. ${s.day} - ${s.time_slot} (${s.doctor})`
+                        ).join("<br>")
+                    );
+                }
+    
+                // STEP VISUALIZATION
+                addMessage(
+                    'msg-server',
+                    `<span style="color:#aaa">Current Step: ${data.step}</span>`
+                );
+            };
+    
+            ws.onerror = (err) => {
+                console.error(err);
+                status.textContent = '❌ Connection Error';
+                status.style.color = '#ff6b6b';
+    
+                addMessage('msg-error', '❌ WebSocket Error (check backend)');
+            };
+    
+            ws.onclose = () => {
+                status.textContent = '🔌 Disconnected';
+                status.style.color = '#ff6b6b';
+    
+                input.disabled = true;
+                sendBtn.disabled = true;
+    
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                userIdInput.disabled = false;
+    
+                addMessage('msg-error', '🔌 Connection Closed');
+            };
+        }
+    
+        function disconnect() {
+            if (ws) ws.close();
+        }
+    
+        function send() {
+            const msg = input.value.trim();
+            if (!msg || !ws) return;
+    
+            addMessage('msg-user', `👤 You: ${msg}`);
+    
+            ws.send(msg);
+            input.value = '';
+        }
     </script>
-</body>
-
-</html>
-</script>
 </body>
 
 </html>

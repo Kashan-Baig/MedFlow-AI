@@ -20,12 +20,14 @@ def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
     new_user = models.User(
         email=user_data.email, password_hash=hashed_pwd, role=user_data.role
     )
-    new_role = user_data.role
+    db.add(new_user)
+    db.flush()
+
     if user_data.role == UserRole.PATIENT:
         new_role = models.Patient(
-            full_name=user_data.fullName,
+            user_id=new_user.id,
             email=user_data.email,
-            password_hash=hashed_pwd,
+            full_name=user_data.fullName,
             contact_number=user_data.contact_number,
             gender=user_data.gender,
         )
@@ -35,23 +37,21 @@ def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
                 status_code=400, detail="Specialization is required for doctors"
             )
         new_role = models.Doctor(
-            full_name=user_data.fullName,
+            user_id=new_user.id,
             email=user_data.email,
-            password_hash=hashed_pwd,
+            full_name=user_data.fullName,
             specialization=user_data.specialization,
             contact_number=user_data.contact_number,
             gender=user_data.gender,
         )
     else:
         new_role = models.Admin(
-            full_name=user_data.fullName,
+            user_id=new_user.id,
             email=user_data.email,
-            password_hash=hashed_pwd,
+            full_name=user_data.fullName,
         )
-    db.add(new_user)
     db.add(new_role)
     db.commit()
-    db.refresh(new_user)
     db.refresh(new_role)
 
     user_out = schemas.UserOut.model_validate(new_user)
@@ -83,22 +83,16 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
         )
     # checking if this role exist in the respected roles tables
     if user.role == UserRole.PATIENT:
-        role_data = (
-            db.query(models.Patient).filter(models.Patient.email == user.email).first()
-        )
+        role_data = user.patient
         if not role_data:
             raise HTTPException(status_code=400, detail="Patient profile not found")
 
     elif user.role == UserRole.DOCTOR:
-        role_data = (
-            db.query(models.Doctor).filter(models.Doctor.email == user.email).first()
-        )
+        role_data = user.doctor
         if not role_data:
             raise HTTPException(status_code=400, detail="Doctor profile not found")
     else:
-        role_data = (
-            db.query(models.Admin).filter(models.Admin.email == user.email).first()
-        )
+        role_data = user.admin
         if not role_data:
             raise HTTPException(status_code=400, detail="Admin profile not found")
 

@@ -75,19 +75,24 @@ class User(Base):
     email = Column(String(100), unique=True, index=True, nullable=False)
     password_hash = Column(String(256), nullable=False)
     role = Column(String, default=UserRole.PATIENT)
+    patient = relationship("Patient", back_populates="user", uselist=False)
+    doctor = relationship("Doctor", back_populates="user", uselist=False)
+    admin = relationship("Admin", back_populates="user", uselist=False)
 
 
 class Admin(Base):
     __tablename__ = "admins"
     admin_id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     full_name = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
-    password_hash = Column(String(256), nullable=False)
+    user = relationship("User", back_populates="admin")
 
 
 class Doctor(Base):
     __tablename__ = "doctors"
     doctor_id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     full_name = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     contact_number = Column(String(20))
@@ -95,20 +100,23 @@ class Doctor(Base):
     specialization = Column(String(50), nullable=False)
     workload_count = Column(Integer, default=0)
     on_duty_status = Column(Boolean, default=True)
-    password_hash = Column(String(256), nullable=False)
+
+    user = relationship("User", back_populates="doctor")
     slots = relationship("ScheduleSlot", back_populates="doctor")
 
 
 class Patient(Base):
     __tablename__ = "patients"
     patient_id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     full_name = Column(String(100), nullable=False)
-    password_hash = Column(String(256), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     contact_number = Column(String(20))
     age = Column(Integer)
     gender = Column(Enum(Gender))
     address = Column(Text)
+
+    user = relationship("User", back_populates="patient")
     appointments = relationship("Appointment", back_populates="patient")
     history = relationship("MedicalHistory", back_populates="patient", uselist=False)
 

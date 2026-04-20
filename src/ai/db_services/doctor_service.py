@@ -9,7 +9,7 @@ def get_doctors_by_speciality(speciality, from_doctor_router=False):
             """
         SELECT 
             d.doctor_id AS id,
-            d.name,
+            d.full_name,
             d.specialization AS speciality,
             ss.available_days::text[],
             CONCAT(

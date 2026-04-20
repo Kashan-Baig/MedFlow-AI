@@ -167,3 +167,31 @@ def book_appointment(session_id, insight):
     update_appointment(session_id, appointment_data)
 
     return appointment_data
+
+
+def build_slots(speciality, doctors):
+    days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+
+    slot_list = []
+    count = 1
+
+    available_doctors_by_day = get_doctors_by_speciality(speciality)
+
+    for day in days:
+        available_doctors = available_doctors_by_day.get(day, [])
+
+        for doc in available_doctors:
+            for i in range(len(doc["time_slots"])):
+                slot_list.append({
+                    "slot_number": count,
+                    "doctor": doc["name"],
+                    "doctor_id": doc["id"],
+                    "speciality": speciality, 
+                    "slot_id": doc["slot_ids"][i],
+                    "day": day,
+                    "time_slot": doc["time_slots"][i],
+                    "date": str(get_next_date_for_day(day)),
+                })
+                count += 1
+
+    return slot_list

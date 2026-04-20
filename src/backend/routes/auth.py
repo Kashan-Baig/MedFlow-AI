@@ -13,6 +13,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
     "/register", response_model=schemas.GenericResponse[schemas.RegisterResponse]
 )
 def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
+    print(user_data)
     db_user = db.query(models.User).filter(models.User.email == user_data.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -24,12 +25,15 @@ def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
     db.flush()
 
     if user_data.role == UserRole.PATIENT:
+        if not user_data.age:
+            raise HTTPException(status_code=400, detail="Age is required for Patients")
         new_role = models.Patient(
             user_id=new_user.id,
             email=user_data.email,
             full_name=user_data.fullName,
             contact_number=user_data.contact_number,
             gender=user_data.gender,
+            age=user_data.age,
         )
     elif user_data.role == UserRole.DOCTOR:
         if not user_data.specialization:
@@ -97,6 +101,13 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
             raise HTTPException(status_code=400, detail="Admin profile not found")
 
     # 3. Generate Token
+    if user.role == UserRole.PATIENT:
+        role_out = schemas.PatientAuthOut.model_validate(role_data)
+    elif user.role == UserRole.DOCTOR:
+        role_out = schemas.DoctorAuthOut.model_validate(role_data)
+    else:
+        role_out = schemas.AdminAuthOut.model_validate(role_data)
+
     role_id = None
     if user.role == UserRole.PATIENT:
         role_id = role_data.patient_id
@@ -117,5 +128,7 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
     return {
         "status_code": 200,
         "message": "User logged in successfully",
-        "data": schemas.LoginResponse(user=user_out, access_token=access_token),
+        "data": schemas.LoginResponse(
+            user=user_out, role=role_out, access_token=access_token
+        ),
     }

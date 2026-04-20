@@ -21,6 +21,7 @@ class UserCreate(UserBase):
     contact_number: str
     gender: Gender
     specialization: Optional[str] = None
+    age: Optional[int] = None
 
 
 class UserLogin(BaseModel):
@@ -36,13 +37,8 @@ class UserOut(UserBase):
         from_attributes = True
 
 
-class LoginResponse(BaseModel):
-    user: UserOut
-    access_token: str
-
-
 class PatientAuthOut(BaseModel):
-    patient_id: int
+    id: int = Field(validation_alias="patient_id")
     full_name: str
     email: EmailStr
     contact_number: Optional[str] = None
@@ -53,23 +49,30 @@ class PatientAuthOut(BaseModel):
 
 
 class DoctorAuthOut(BaseModel):
-    doctor_id: int
+    id: int = Field(validation_alias="doctor_id")
     full_name: str
     email: EmailStr
     contact_number: Optional[str] = None
     gender: Optional[Gender] = None
+    specialization: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 
 class AdminAuthOut(BaseModel):
-    admin_id: int
+    id: int = Field(validation_alias="admin_id")
     full_name: str
     email: EmailStr
 
     class Config:
         from_attributes = True
+
+
+class LoginResponse(BaseModel):
+    user: UserOut
+    role: Union[PatientAuthOut, DoctorAuthOut, AdminAuthOut]
+    access_token: str
 
 
 class RegisterResponse(BaseModel):

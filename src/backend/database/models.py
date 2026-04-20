@@ -112,7 +112,7 @@ class Patient(Base):
     full_name = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     contact_number = Column(String(20))
-    age = Column(Integer)
+    age = Column(Integer, nullable=False)
     gender = Column(Enum(Gender))
     address = Column(Text)
 

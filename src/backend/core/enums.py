@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class Step(str, Enum):
     AWAITING_NAME = "awaiting_name"
     AWAITING_EMAIL = "awaiting_email"

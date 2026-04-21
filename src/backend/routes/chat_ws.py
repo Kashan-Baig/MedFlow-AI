@@ -5,7 +5,6 @@ from datetime import datetime
 from src.ai.services.insight_service import generate_insights, generate_patient_response
 from src.ai.services.rag_service import get_relevant_context
 from src.ai.utils.session_store import create_session, add_conversation, get_session
-from src.ai.utils.doctor_store import doctors
 from src.ai.db_services.booking_service import (
     parse_insight,
     normalize_speciality,

@@ -4,8 +4,12 @@ from jose import JWTError, jwt
 import bcrypt
 import os
 from dotenv import load_dotenv
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 load_dotenv()
+
+security_scheme = HTTPBearer()
 
 # Configuration from .env
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -41,6 +45,26 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security_scheme)):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token"
+        )
+
+
+def get_current_admin(user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Admins only."
+        )
+    return payload
 
 def extract_user_from_access_token(token: str) -> Optional[dict]:
     """Extracts and verifies user data from a JWT access token."""
@@ -79,4 +103,4 @@ def get_current_patient(user: dict = Depends(get_current_user)) -> dict:
         raise HTTPException(status_code=403, detail="Not authorized as patient")
     return user
 
-
+\

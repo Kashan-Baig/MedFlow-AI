@@ -1,24 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from src.backend.database.db_connection import get_db
 from src.backend.database import models
+from src.backend.database.db_connection import get_db
+from src.backend.database.models import UserRole
 from src.backend.schemas import all_schema as schemas
 from src.backend.core import middleware as security
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-@router.post("/register", response_model=schemas.GenericResponse[schemas.UserOut])
+
+@router.post(
+    "/register", response_model=schemas.GenericResponse[schemas.RegisterResponse]
+)
 def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
     print(user_data)
     db_user = db.query(models.User).filter(models.User.email == user_data.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
-    # 2. Hash and Save
     hashed_pwd = security.hash_password(user_data.password)
     new_user = models.User(
-        email=user_data.email,
-        password_hash=hashed_pwd,
-        role=user_data.role
+        email=user_data.email, password_hash=hashed_pwd, role=user_data.role
     )
     db.add(new_user)
     db.flush()
@@ -65,18 +66,20 @@ def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
     else:
         role_out = schemas.AdminAuthOut.model_validate(new_role)
     # print(f"Registered new user: {user_out} with role {role_out}")
-    db.commit()
-    db.refresh(new_user)
     return {
         "status_code": 201,
-        "message": "User registered successfully",
-        "data": new_user
+        "message": f"A new {user_data.role.value} registered successfully",
+        "data": schemas.RegisterResponse(user=user_out, role=role_out),
     }
+
 
 @router.post("/login", response_model=schemas.GenericResponse[schemas.LoginResponse])
 def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
+
     user = db.query(models.User).filter(models.User.email == login_data.email).first()
-    if not user or not security.verify_password(login_data.password, user.password_hash):
+    if not user or not security.verify_password(
+        login_data.password, user.password_hash
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -113,17 +116,15 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
     else:
         role_id = role_data.admin_id
 
-    if(user.role != login_data.role):
-         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"this email is not registered as {login_data.role.value}",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    # 3. Generate Token
     access_token = security.create_access_token(
-        data={"sub": user.email, "role": user.role}
+        data={
+            "sub": user.email,
+            "role": user.role,
+            "user_id": user.id,
+            "role_id": role_id,
+        }
     )
-    
+    user_out = schemas.UserOut.model_validate(user)
     return {
         "status_code": 200,
         "message": "User logged in successfully",
@@ -131,5 +132,3 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
             user=user_out, role=role_out, access_token=access_token
         ),
     }
-
-

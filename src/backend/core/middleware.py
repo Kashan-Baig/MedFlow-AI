@@ -46,26 +46,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security_scheme)):
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
-        )
-
-
-def get_current_admin(user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied. Admins only."
-        )
-    return payload
-
 def extract_user_from_access_token(token: str) -> Optional[dict]:
     """Extracts and verifies user data from a JWT access token."""
     try:
@@ -82,14 +62,27 @@ from fastapi.security import APIKeyHeader
 api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
 
 
-def get_current_user(token: str = Depends(api_key_header)) -> dict:
-    if not token:
-        raise HTTPException(status_code=401, detail="Token missing")
-    clean_token = token.replace("Bearer ", "") if "Bearer " in token else token
-    user_data = extract_user_from_access_token(clean_token)
-    if not user_data:
-        raise HTTPException(status_code=401, detail="Invalid token or expired")
-    return user_data
+# def get_current_user(token: str = Depends(api_key_header)) -> dict:
+#     if not token:
+#         raise HTTPException(status_code=401, detail="Token missing")
+#     clean_token = token.replace("Bearer ", "") if "Bearer " in token else token
+#     user_data = extract_user_from_access_token(clean_token)
+#     if not user_data:
+#         raise HTTPException(status_code=401, detail="Invalid token or expired")
+#     return user_data
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
+):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        )
 
 
 def get_current_doctor(user: dict = Depends(get_current_user)) -> dict:
@@ -103,4 +96,10 @@ def get_current_patient(user: dict = Depends(get_current_user)) -> dict:
         raise HTTPException(status_code=403, detail="Not authorized as patient")
     return user
 
-\
+
+def get_current_admin(user: dict = Depends(get_current_user)):
+    if str(user.get("role")).lower() != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Admins only."
+        )
+    return user

@@ -22,10 +22,10 @@ from .db_connection import Base
 
 
 class AppointmentStatus(str, enum.Enum):
-    PENDING = "Pending"
-    CONFIRMED = "Confirmed"
-    CANCELLED = "Cancelled"
-    COMPLETED = "Completed"
+    PENDING = "PENDING"
+    CONFIRMED = "CONFIRMED"
+    CANCELLED = "CANCELLED"
+    COMPLETED = "COMPLETED"
 
 
 class CaseType(str, enum.Enum):

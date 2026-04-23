@@ -4,6 +4,7 @@ from sqlalchemy import text
 # from workflows.patient_flow import run_patient_flow
 import src.ai.db_services.db_services as db_service
 import src.backend.core.middleware as security
+from src.backend.database.models import AppointmentStatus
 from src.backend.database.db_connection import get_db
 from sqlalchemy.orm import Session
 
@@ -78,42 +79,49 @@ def get_patient_appointments(
         "data": db_service.get_appointments_by_patient_id(patient_id),
     }
 
+
 @router.post("/book_appointment")
 def book_appointment(
     patient_id: int,
     doctor_id: int,
     slot_id: int,
-    db: Session = Depends(get_db)
+    appointment_date: str,
+    db: Session = Depends(get_db),
 ):
     try:
-        lock_query = text("""
+        lock_query = text(
+            """
             UPDATE schedule_slots
             SET is_locked = TRUE
             WHERE slot_id = :slot_id
             AND is_locked = FALSE
             RETURNING slot_id
-        """)
+        """
+        )
 
         lock_result = db.execute(lock_query, {"slot_id": slot_id}).fetchone()
 
         if not lock_result:
-            raise HTTPException(
-                status_code=400,
-                detail="Slot already booked"
-            )
+            raise HTTPException(status_code=400, detail="Slot already booked")
 
-        insert_query = text("""
-            INSERT INTO appointments (patient_id, doctor_id, slot_id, status)
-            VALUES (:patient_id, :doctor_id, :slot_id, :status)
+        insert_query = text(
+            """
+            INSERT INTO appointments (patient_id, doctor_id, slot_id, status, appointment_date)
+            VALUES (:patient_id, :doctor_id, :slot_id, :status, :appointment_date)
             RETURNING appointment_id
-        """)
+        """
+        )
 
-        result = db.execute(insert_query, {
-            "patient_id": patient_id,
-            "doctor_id": doctor_id,
-            "slot_id": slot_id,
-            "status": "Confirmed"
-        })
+        result = db.execute(
+            insert_query,
+            {
+                "patient_id": patient_id,
+                "doctor_id": doctor_id,
+                "slot_id": slot_id,
+                "status": AppointmentStatus.PENDING,
+                "appointment_date": appointment_date,
+            },
+        )
 
         appointment_id = result.fetchone()[0]
 
@@ -122,19 +130,19 @@ def book_appointment(
         return {
             "status": "success",
             "appointment_id": appointment_id,
-            "message": "Appointment booked successfully"
+            "message": "Appointment booked successfully",
         }
 
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/patient_history")
-def get_patient_history(
-    patient_id: int,
-    db: Session = Depends(get_db)
-):
-    medical = db.execute(text("""
+def get_patient_history(patient_id: int, db: Session = Depends(get_db)):
+    medical = db.execute(
+        text(
+            """
         SELECT 
             allergies,
             blood_group,
@@ -143,11 +151,16 @@ def get_patient_history(
             last_updated
         FROM medical_history
         WHERE patient_id = :patient_id
-    """), {"patient_id": patient_id}).fetchone()
+    """
+        ),
+        {"patient_id": patient_id},
+    ).fetchone()
 
     medical_history = dict(medical._mapping) if medical else {}
 
-    visits = db.execute(text("""
+    visits = db.execute(
+        text(
+            """
         SELECT 
             a.appointment_id,
             a.appointment_date,
@@ -157,7 +170,10 @@ def get_patient_history(
         JOIN doctors d ON a.doctor_id = d.doctor_id
         WHERE a.patient_id = :patient_id
         ORDER BY a.appointment_date DESC
-    """), {"patient_id": patient_id}).fetchall()
+    """
+        ),
+        {"patient_id": patient_id},
+    ).fetchall()
 
     visiting_history = [dict(row._mapping) for row in visits]
 
@@ -165,8 +181,5 @@ def get_patient_history(
         "status": "success",
         "medical_history": medical_history,
         "visiting_history": visiting_history,
-        "total_visits": len(visiting_history)
+        "total_visits": len(visiting_history),
     }
-
-
-

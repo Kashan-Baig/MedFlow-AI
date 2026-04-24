@@ -17,7 +17,7 @@ def get_next_date_for_day(day_name: str):
         "Thursday": 3,
         "Friday": 4,
         "Saturday": 5,
-        "Sunday": 6
+        "Sunday": 6,
     }
 
     today = datetime.now()
@@ -55,7 +55,6 @@ def normalize_speciality(text):
     return text.split("/")[0].title()
 
 
-
 # =========================
 # MAIN BOOKING FUNCTION
 # =========================
@@ -76,14 +75,22 @@ def book_appointment(session_id, insight):
 
     print(f"\n🩺 Recommended Specialist: {speciality}")
 
-    days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    days = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ]
 
     slot_map = []
     print("\n📅 Available Slots:\n")
 
-    count = 1 
+    count = 1
     available_doctors_by_day = get_doctors_by_speciality(speciality)
-    
+
     for day in days:
         available_doctors = available_doctors_by_day.get(day, [])
 
@@ -92,15 +99,15 @@ def book_appointment(session_id, insight):
             for i in range(len(doc["time_slots"])):
                 slot_id = doc["slot_ids"][i]
                 time_slot = doc["time_slots"][i]
-                slot_map.append({
-                    "doctor": doc,
-                    "day": day,
-                    "time_slot": time_slot,
-                    "slot_id": slot_id
-                })
-                print(
-                    f"{count}. {day} - {time_slot} - {doc['name']}"
+                slot_map.append(
+                    {
+                        "doctor": doc,
+                        "day": day,
+                        "time_slot": time_slot,
+                        "slot_id": slot_id,
+                    }
                 )
+                print(f"{count}. {day} - {time_slot} - {doc['name']}")
                 count += 1
 
     if not slot_map:
@@ -144,16 +151,18 @@ def book_appointment(session_id, insight):
     # =========================
     # CREATE APPOINTMENT
     # =========================
-    appointment_id = create_appointment(
+    result = create_appointment(
         patient_id=patient_id,
         doctor_id=doctor["id"],
         slot_id=slot_id,
-        target_date=get_next_date_for_day(day)
+        target_date=get_next_date_for_day(day),
     )
-    if appointment_id == "Slot is already full":
-        return {
-            "error": "Slot is already full",
-        }
+
+    # create_appointment returns a string on failure, dict on success
+    if isinstance(result, str):
+        return {"error": result}
+
+    appointment_id = result["appointment_id"]
 
     appointment_data = {
         "appointment_id": appointment_id,
@@ -161,7 +170,9 @@ def book_appointment(session_id, insight):
         "speciality": speciality,
         "day": day,
         "time_slot": time_slot,
-        "status": "confirmed"
+        "queue_number": result["queue_number"],
+        "expected_time": result["expected_time"],
+        "status": "confirmed",
     }
 
     update_appointment(session_id, appointment_data)
@@ -170,7 +181,15 @@ def book_appointment(session_id, insight):
 
 
 def build_slots(speciality, doctors):
-    days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+    days = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ]
 
     slot_list = []
     count = 1
@@ -182,16 +201,18 @@ def build_slots(speciality, doctors):
 
         for doc in available_doctors:
             for i in range(len(doc["time_slots"])):
-                slot_list.append({
-                    "slot_number": count,
-                    "doctor": doc["name"],
-                    "doctor_id": doc["id"],
-                    "speciality": speciality, 
-                    "slot_id": doc["slot_ids"][i],
-                    "day": day,
-                    "time_slot": doc["time_slots"][i],
-                    "date": str(get_next_date_for_day(day)),
-                })
+                slot_list.append(
+                    {
+                        "slot_number": count,
+                        "doctor": doc["name"],
+                        "doctor_id": doc["id"],
+                        "speciality": speciality,
+                        "slot_id": doc["slot_ids"][i],
+                        "day": day,
+                        "time_slot": doc["time_slots"][i],
+                        "date": str(get_next_date_for_day(day)),
+                    }
+                )
                 count += 1
 
     return slot_list

@@ -91,10 +91,9 @@ def book_appointment(
     try:
         lock_query = text(
             """
-            UPDATE schedule_slots
+            UPDATE slots
             SET is_locked = TRUE
             WHERE slot_id = :slot_id
-            AND is_locked = FALSE
             RETURNING slot_id
         """
         )

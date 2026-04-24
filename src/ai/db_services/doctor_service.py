@@ -19,10 +19,9 @@ def get_doctors_by_speciality(speciality, from_doctor_router=False):
             ) AS time_slot,
             ss.slot_id
         FROM doctors d
-        JOIN schedule_slots ss ON ss.doctor_id = d.doctor_id
+        JOIN slots ss ON ss.doctor_id = d.doctor_id
         WHERE
             LOWER(d.specialization) = LOWER(:speciality)
-            AND ss.is_locked = FALSE
         ORDER BY ss.start_time;
         """
         )
@@ -132,7 +131,7 @@ def get_patients_by_doctor_id(doctor_id):
                 cr.prescribed_actions as prescription
             FROM appointments a
             JOIN patients p ON p.patient_id = a.patient_id
-            JOIN schedule_slots ss ON a.slot_id = ss.slot_id
+            JOIN slots ss ON a.slot_id = ss.slot_id
             LEFT JOIN medical_prechecks mp ON a.appointment_id = mp.appointment_id
             LEFT JOIN consultation_records cr ON a.appointment_id = cr.appointment_id
             WHERE a.doctor_id = :doctor_id

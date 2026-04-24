@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, List ,Any, Generic
+from typing import Optional, List, Any, Generic
 from typing_extensions import TypeVar
 from datetime import date, time
 from decimal import Decimal
@@ -19,11 +19,11 @@ from src.backend.schemas.auth_schemas import (
 # Defaulting T to Any allows both GenericResponse[T] and GenericResponse.
 T = TypeVar("T", default=Any)
 
+
 class GenericResponse(BaseModel, Generic[T]):
     status_code: int
     message: str
     data: Optional[T] = None
-
 
 
 # --- PATIENT & HISTORY ---
@@ -34,6 +34,7 @@ class MedicalHistoryBase(BaseModel):
     current_medications: List[str] = []
     last_updated: Optional[date] = None
 
+
 class PatientBase(BaseModel):
     full_name: str
     email: EmailStr
@@ -42,10 +43,13 @@ class PatientBase(BaseModel):
     gender: Optional[str] = None
     address: Optional[str] = None
 
+
 class PatientOut(PatientBase):
     patient_id: int
+
     class Config:
         from_attributes = True
+
 
 # --- DOCTOR & SLOTS ---
 class DoctorOut(BaseModel):
@@ -54,17 +58,21 @@ class DoctorOut(BaseModel):
     specialization: Optional[str] = None
     on_duty_status: bool
     workload_count: int
+
     class Config:
         from_attributes = True
 
-class ScheduleSlotOut(BaseModel):
+
+class SlotOut(BaseModel):
     slot_id: int
     available_date: date
     start_time: time
     end_time: time
     is_locked: bool
+
     class Config:
         from_attributes = True
+
 
 # --- PRECHECK & APPOINTMENT ---
 class MedicalPrecheckBase(BaseModel):
@@ -76,16 +84,18 @@ class MedicalPrecheckBase(BaseModel):
     patient_symptoms: List[str] = []
     ai_predicted_condition: Optional[str] = None
 
+
 class AppointmentCreate(BaseModel):
     patient_id: int
     doctor_id: int
     slot_id: int
     case_type: CaseType
 
+
 class AppointmentOut(BaseModel):
     appointment_id: int
     status: AppointmentStatus
     case_type: CaseType
+
     class Config:
         from_attributes = True
-        

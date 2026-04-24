@@ -13,6 +13,7 @@ from sqlalchemy import (
     Text,
     ARRAY,
     Numeric,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 import enum
@@ -66,6 +67,12 @@ class DayOfWeek(enum.Enum):
     Sunday = "Sunday"
 
 
+class ExceptionType(str, enum.Enum):
+    LEAVE = "Leave"
+    HOLIDAY = "Holiday"
+    EMERGENCY = "Emergency"
+
+
 # MODELS :
 
 
@@ -102,7 +109,7 @@ class Doctor(Base):
     on_duty_status = Column(Boolean, default=True)
 
     user = relationship("User", back_populates="doctor")
-    slots = relationship("ScheduleSlot", back_populates="doctor")
+    slots = relationship("Slot", back_populates="doctor")
 
 
 class Patient(Base):
@@ -124,8 +131,8 @@ class Patient(Base):
 # TODO : update this model according to neon db
 
 
-class ScheduleSlot(Base):
-    __tablename__ = "schedule_slots"
+class Slot(Base):
+    __tablename__ = "slots"
     slot_id = Column(Integer, primary_key=True, index=True)
     doctor_id = Column(Integer, ForeignKey("doctors.doctor_id"))
     available_days = Column(
@@ -134,8 +141,9 @@ class ScheduleSlot(Base):
     max_appointments = Column(Integer, default=1, nullable=False)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
-    is_locked = Column(Boolean, default=False)
     doctor = relationship("Doctor", back_populates="slots")
+    bookings = relationship("SlotBooking", back_populates="slot")
+    exceptions = relationship("SlotException", back_populates="slot")
 
 
 class Appointment(Base):
@@ -144,10 +152,19 @@ class Appointment(Base):
     patient_id = Column(Integer, ForeignKey("patients.patient_id"))
     doctor_id = Column(Integer, ForeignKey("doctors.doctor_id"))
     appointment_date = Column(Date, nullable=False)
-    slot_id = Column(Integer, ForeignKey("schedule_slots.slot_id"))
+    slot_id = Column(Integer, ForeignKey("slots.slot_id"))
+
+    # NEW COLUMNS
+    slot_booking_id = Column(Integer, ForeignKey("slot_bookings.booking_id"))
+    queue_number = Column(Integer, nullable=False)  # e.g. 6
+    expected_time = Column(Time, nullable=False)  # e.g. 10:00
+
     status = Column(Enum(AppointmentStatus), default=AppointmentStatus.PENDING)
     case_type = Column(Enum(CaseType))
+
+    # Relationships
     patient = relationship("Patient", back_populates="appointments")
+    slot_booking = relationship("SlotBooking", back_populates="appointments")
     record = relationship(
         "ConsultationRecord", back_populates="appointment", uselist=False
     )
@@ -194,3 +211,33 @@ class MedicalPrecheck(Base):
     patient_symptoms = Column(ARRAY(String))
     ai_predicted_condition = Column(String(100))
     appointment = relationship("Appointment", back_populates="precheck")
+
+
+class SlotBooking(Base):
+    __tablename__ = "slot_bookings"
+    booking_id = Column(Integer, primary_key=True, index=True)
+    slot_id = Column(Integer, ForeignKey("slots.slot_id"), nullable=False)
+    booking_date = Column(Date, nullable=False)  # e.g. 2025-04-19
+    booked_count = Column(Integer, default=0)  # how many patients booked so far
+
+    # Relationships
+    slot = relationship("Slot", back_populates="bookings")
+    appointments = relationship("Appointment", back_populates="slot_booking")
+
+    # Unique constraint: one record per slot per date
+    __table_args__ = (UniqueConstraint("slot_id", "booking_date", name="uq_slot_date"),)
+
+
+class SlotException(Base):
+    __tablename__ = "slot_exceptions"
+    exception_id = Column(Integer, primary_key=True, index=True)
+    slot_id = Column(Integer, ForeignKey("slots.slot_id"), nullable=False)
+    exception_date = Column(Date, nullable=False)
+    reason = Column(Enum(ExceptionType), nullable=False)
+    note = Column(Text, nullable=True)  # optional note from doctor/admin
+
+    slot = relationship("Slot", back_populates="exceptions")
+
+    __table_args__ = (
+        UniqueConstraint("slot_id", "exception_date", name="uq_slot_exception_date"),
+    )

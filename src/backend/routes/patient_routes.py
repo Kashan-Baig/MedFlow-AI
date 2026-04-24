@@ -182,3 +182,66 @@ def get_patient_history(patient_id: int, db: Session = Depends(get_db)):
         "visiting_history": visiting_history,
         "total_visits": len(visiting_history),
     }
+
+@router.get("/patient_full_data")
+def get_patient_full_data(
+    patient_id: int,
+    db: Session = Depends(get_db)
+):
+    patient = db.execute(text("""
+        SELECT * FROM patients
+        WHERE patient_id = :patient_id
+    """), {"patient_id": patient_id}).fetchone()
+
+    if not patient:
+        return {"status": "error", "message": "Patient not found"}
+
+    patient_info = dict(patient._mapping)
+
+    medical_history = db.execute(text("""
+        SELECT * FROM medical_history
+        WHERE patient_id = :patient_id
+    """), {"patient_id": patient_id}).fetchone()
+
+    medical_history = dict(medical_history._mapping) if medical_history else {}
+
+    appointments = db.execute(text("""
+        SELECT 
+            a.*,
+            d.full_name AS doctor_name
+        FROM appointments a
+        JOIN doctors d ON a.doctor_id = d.doctor_id
+        WHERE a.patient_id = :patient_id
+        ORDER BY a.appointment_date DESC
+    """), {"patient_id": patient_id}).fetchall()
+
+    appointments_list = [dict(row._mapping) for row in appointments]
+
+    consultations = db.execute(text("""
+        SELECT c.*
+        FROM consultation_records c
+        JOIN appointments a ON c.appointment_id = a.appointment_id
+        WHERE a.patient_id = :patient_id
+        ORDER BY c.record_id DESC
+    """), {"patient_id": patient_id}).fetchall()
+
+    consultations_list = [dict(row._mapping) for row in consultations]
+
+    prechecks = db.execute(text("""
+        SELECT m.*
+        FROM medical_prechecks m
+        JOIN appointments a ON m.appointment_id = a.appointment_id
+        WHERE a.patient_id = :patient_id
+        ORDER BY m.check_id DESC
+    """), {"patient_id": patient_id}).fetchall()
+
+    prechecks_list = [dict(row._mapping) for row in prechecks]
+
+    return {
+        "status": "success",
+        "patient": patient_info,
+        "medical_history": medical_history,
+        "appointments": appointments_list,
+        "consultations": consultations_list,
+        "prechecks": prechecks_list
+    }

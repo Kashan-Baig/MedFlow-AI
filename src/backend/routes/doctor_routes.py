@@ -157,17 +157,14 @@ def get_available_slots(
             d.specialization
         FROM slots s
         JOIN doctors d ON s.doctor_id = d.doctor_id
-        LEFT JOIN slot_bookings sb
-               ON sb.slot_id     = s.slot_id
-              AND sb.booking_date = :target_date
-        LEFT JOIN slot_exceptions se
-               ON se.slot_id        = s.slot_id
-              AND se.exception_date  = :target_date
-        WHERE
-            :day_name = ANY(s.available_days::text[])              -- day must match
-            AND se.exception_id IS NULL                            -- no leave/holiday
-            AND COALESCE(sb.booked_count, 0) < s.max_appointments  -- not full
-        ORDER BY s.start_time;
+        LEFT JOIN slot_bookings sb ON s.slot_id = sb.slot_id AND sb.booking_date = :target_date
+        WHERE CAST(:day_name AS VARCHAR) = ANY(s.available_days::VARCHAR[])
+          AND NOT EXISTS (
+              SELECT 1 FROM slot_exceptions se 
+              WHERE se.slot_id = s.slot_id AND se.exception_date = :target_date
+          )
+          AND (s.max_appointments - COALESCE(sb.booked_count, 0)) > 0
+        ORDER BY s.start_time
     """
         ),
         {"target_date": target_date, "day_name": day_name},

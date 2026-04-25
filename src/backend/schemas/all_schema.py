@@ -16,6 +16,8 @@ from src.backend.schemas.auth_schemas import (
     UserOut,
 )
 
+from src.backend.schemas.doctor_schema import DoctorUpdateSchema
+
 # Defaulting T to Any allows both GenericResponse[T] and GenericResponse.
 T = TypeVar("T", default=Any)
 

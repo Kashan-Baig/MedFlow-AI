@@ -16,6 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 import enum
 from .db_connection import Base
 
@@ -107,7 +108,7 @@ class Doctor(Base):
     specialization = Column(String(50), nullable=False)
     workload_count = Column(Integer, default=0)
     on_duty_status = Column(Boolean, default=True)
-
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     user = relationship("User", back_populates="doctor")
     slots = relationship("Slot", back_populates="doctor")
 
@@ -122,13 +123,10 @@ class Patient(Base):
     age = Column(Integer, nullable=False)
     gender = Column(Enum(Gender))
     address = Column(Text)
-
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     user = relationship("User", back_populates="patient")
     appointments = relationship("Appointment", back_populates="patient")
     history = relationship("MedicalHistory", back_populates="patient", uselist=False)
-
-
-# TODO : update this model according to neon db
 
 
 class Slot(Base):
@@ -149,8 +147,8 @@ class Slot(Base):
 class Appointment(Base):
     __tablename__ = "appointments"
     appointment_id = Column(Integer, primary_key=True, index=True)
-    patient_id = Column(Integer, ForeignKey("patients.patient_id"))
-    doctor_id = Column(Integer, ForeignKey("doctors.doctor_id"))
+    patient_id = Column(Integer, ForeignKey("patients.patient_id", ondelete="CASCADE"))
+    doctor_id = Column(Integer, ForeignKey("doctors.doctor_id", ondelete="CASCADE"))
     appointment_date = Column(Date, nullable=False)
     slot_id = Column(Integer, ForeignKey("slots.slot_id"))
 
@@ -166,10 +164,14 @@ class Appointment(Base):
     patient = relationship("Patient", back_populates="appointments")
     slot_booking = relationship("SlotBooking", back_populates="appointments")
     record = relationship(
-        "ConsultationRecord", back_populates="appointment", uselist=False
+        "ConsultationRecord",
+        back_populates="appointment",
+        uselist=False,
     )
     precheck = relationship(
-        "MedicalPrecheck", back_populates="appointment", uselist=False
+        "MedicalPrecheck",
+        back_populates="appointment",
+        uselist=False,
     )
 
 
@@ -187,7 +189,9 @@ class ConsultationRecord(Base):
 class MedicalHistory(Base):
     __tablename__ = "medical_history"
     history_id = Column(Integer, primary_key=True, index=True)
-    patient_id = Column(Integer, ForeignKey("patients.patient_id"), unique=True)
+    patient_id = Column(
+        Integer, ForeignKey("patients.patient_id", ondelete="CASCADE"), unique=True
+    )
     allergies = Column(ARRAY(String))
     blood_group = Column(Enum(BloodGroup))
     chronic_conditions = Column(ARRAY(String))

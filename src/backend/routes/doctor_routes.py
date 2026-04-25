@@ -1,16 +1,113 @@
 from datetime import date as DateType
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from src.backend.database.db_connection import get_db
-from src.backend.database.models import SlotException, ExceptionType
+from src.backend.database.models import Doctor, Gender, SlotException, ExceptionType
 
-router = APIRouter()
+from src.backend.schemas.all_schema import DoctorUpdateSchema
+
+from src.backend.core.middleware import (
+    get_current_admin,
+    get_current_user,
+)
+
+router = APIRouter(prefix="/doctor", tags=["doctor"])
 
 
 @router.get("/dashboard")
 def dashboard():
     return {"message": "Doctor dashboard"}
+
+
+@router.patch("/update_doctor")
+def update_doctor(
+    doctor_id: int,
+    payload: DoctorUpdateSchema,
+    db: Session = Depends(get_db),
+    current_admin=Depends(get_current_admin),
+):
+    doctor = db.query(Doctor).filter(Doctor.doctor_id == doctor_id).first()
+
+    if not doctor:
+        raise HTTPException(
+            status_code=404, detail=f"Doctor with id {doctor_id} not found"
+        )
+
+    updated_fields = payload.model_dump(exclude_none=True)
+
+    if not updated_fields:
+        raise HTTPException(status_code=400, detail="No fields provided to update")
+    for field, value in updated_fields.items():
+        setattr(doctor, field, value)
+
+    db.commit()
+    db.refresh(doctor)
+
+    return {
+        "status": "success",
+        "message": f"Doctor {doctor_id} updated successfully",
+        "data": {
+            "doctor_id": doctor.doctor_id,
+            "full_name": doctor.full_name,
+            "email": doctor.email,
+            "contact_number": doctor.contact_number,
+            "gender": doctor.gender,
+            "specialization": doctor.specialization,
+            "on_duty_status": doctor.on_duty_status,
+        },
+    }
+
+
+@router.delete("/delete_doctor")
+def delete_doctor(
+    doctor_id: int,
+    db: Session = Depends(get_db),
+    current_admin=Depends(get_current_admin),
+):
+    doctor = db.query(Doctor).filter(Doctor.doctor_id == doctor_id).first()
+
+    if not doctor:
+        raise HTTPException(
+            status_code=404, detail=f"Doctor with id {doctor_id} not found"
+        )
+
+    db.delete(doctor)
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": f"Doctor {doctor_id} deleted successfully",
+    }
+
+
+@router.get("/get_doctor")
+def get_doctor_by_id(
+    doctor_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    doctor = db.query(Doctor).filter(Doctor.doctor_id == doctor_id).first()
+    if not doctor:
+        raise HTTPException(
+            status_code=404, detail=f"Doctor with id {doctor_id} not found"
+        )
+
+    return {
+        "status": "success",
+        "data": {
+            "doctor_id": doctor.doctor_id,
+            "full_name": doctor.full_name,
+            "email": doctor.email,
+            "contact_number": doctor.contact_number,
+            "gender": doctor.gender,
+            "specialization": doctor.specialization,
+            "on_duty_status": doctor.on_duty_status,
+            "created_at": doctor.created_at,
+        },
+    }
 
 
 @router.get("/all_doctors")
@@ -129,6 +226,7 @@ def get_patients_by_doctor(doctor_name: str, db: Session = Depends(get_db)):
     return {"status": "success", "count": len(patients), "data": patients}
 
 
+# Todo : get next month all avaiable slots
 @router.get("/available_slots")
 def get_available_slots(
     target_date: DateType,  # e.g. ?target_date=2025-04-19
@@ -169,11 +267,15 @@ def get_available_slots(
         ),
         {"target_date": target_date, "day_name": day_name},
     ).fetchall()
-
+    print(result)
     slots = [dict(row._mapping) for row in result]
 
     if not slots:
-        return {"status": "success", "message": "No available slots for this date", "data": []}
+        return {
+            "status": "success",
+            "message": "No available slots for this date",
+            "data": [],
+        }
 
     return {"status": "success", "count": len(slots), "data": slots}
 

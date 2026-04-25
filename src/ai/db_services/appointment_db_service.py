@@ -55,7 +55,7 @@ def can_book_appointment(db, slot_id, target_date):
 # MAIN: CREATE APPOINTMENT  (new 6-step flow)
 # =========================
 def create_appointment(patient_id, doctor_id, slot_id, target_date):
-    db = next(get_db())
+    db = get_db()
     try:
         exception = (
             # ── Step 1: Block if doctor has a SlotException on this date ──────────
@@ -136,7 +136,7 @@ def create_appointment(patient_id, doctor_id, slot_id, target_date):
 # GET: APPOINTMENTS BY PATIENT
 # =========================
 def get_appointments_by_patient_id(patient_id):
-    db = next(get_db())
+    db = get_db()
     try:
         query = text(
             """

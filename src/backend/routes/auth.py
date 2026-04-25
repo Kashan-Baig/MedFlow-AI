@@ -76,7 +76,7 @@ def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=schemas.GenericResponse[schemas.LoginResponse])
 def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
 
-    user = db.query(models.User).filter(models.User.email == login_data.email).first()
+    user = db.query(models.User).filter(models.User.email.ilike(login_data.email)).first()
     if not user or not security.verify_password(
         login_data.password, user.password_hash
     ):

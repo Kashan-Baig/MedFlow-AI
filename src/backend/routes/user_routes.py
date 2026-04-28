@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+import src.backend.core.middleware as security
 from src.backend.database.db_connection import get_db
 from src.backend.core.middleware import get_current_user
 from src.backend.core.middleware import get_current_admin
+
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -57,3 +59,4 @@ def get_all_users(
     users = [dict(row._mapping) for row in result]
 
     return {"status": "success", "count": len(users), "data": users}
+

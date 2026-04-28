@@ -13,6 +13,8 @@ from src.backend.core.middleware import (
     get_current_admin,
     get_current_user,
 )
+from datetime import date
+
 
 router = APIRouter(prefix="/doctor", tags=["doctor"])
 
@@ -142,12 +144,12 @@ def get_all_specializations(db: Session = Depends(get_db)):
 
     return {"status": "success", "count": len(specializations), "data": specializations}
 
-
-@router.get("/today_schedule")
-def get_today_schedule(db: Session = Depends(get_db)):
-    result = db.execute(
-        text(
-            """
+@router.get("/schedule")
+def get_schedule(
+    target_date: Optional[date] = None,
+    db: Session = Depends(get_db)
+):
+    query = """
         SELECT 
             a.appointment_id,
             a.appointment_date,
@@ -156,23 +158,32 @@ def get_today_schedule(db: Session = Depends(get_db)):
         FROM appointments a
         JOIN patients p ON a.patient_id = p.patient_id
         JOIN doctors d ON a.doctor_id = d.doctor_id
-        WHERE DATE(a.appointment_date) = CURRENT_DATE
-        ORDER BY a.appointment_date
     """
-        )
-    ).fetchall()
+
+    params = {}
+
+    if target_date:
+        query += " WHERE DATE(a.appointment_date) = :target_date"
+        params["target_date"] = target_date
+
+    query += " ORDER BY a.appointment_date"
+
+    result = db.execute(text(query), params).fetchall()
 
     schedule = [dict(row._mapping) for row in result]
 
     if not schedule:
         return {
             "status": "success",
-            "message": "No appointments scheduled for today",
+            "message": "No appointments found",
             "data": [],
         }
 
-    return {"status": "success", "count": len(schedule), "data": schedule}
-
+    return {
+        "status": "success",
+        "count": len(schedule),
+        "data": schedule
+    }
 
 @router.get("/doctors_by_specialization")
 def get_doctors_by_specialization(specialization: str, db: Session = Depends(get_db)):
@@ -267,7 +278,6 @@ def get_available_slots(
         ),
         {"target_date": target_date, "day_name": day_name},
     ).fetchall()
-    print(result)
     slots = [dict(row._mapping) for row in result]
 
     if not slots:

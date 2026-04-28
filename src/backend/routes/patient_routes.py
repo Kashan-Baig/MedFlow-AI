@@ -9,6 +9,9 @@ from src.backend.database.db_connection import get_db
 from sqlalchemy.orm import Session
 from src.backend.core.middleware import get_current_user, get_current_admin
 from src.backend.schemas.patient_schema import PatientUpdateSchema
+from src.backend.database import models
+from src.backend.core import middleware
+from fastapi import status
 
 
 router = APIRouter(prefix="/patient", tags=["Patient"])
@@ -328,4 +331,43 @@ def get_patient_history(patient_id: int, db: Session = Depends(get_db)):
         "medical_history": medical_history,
         "visiting_history": visiting_history,
         "total_visits": len(visiting_history),
+    }
+
+@router.put("/change_password")
+def change_password(
+    old_password: str,
+    new_password: str,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(security.get_current_user)  # 🔐 from your JWT
+):
+    # 🔹 1. Get user from DB
+    user = db.query(models.User).filter(models.User.email == current_user["sub"]).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # 🔹 2. Verify old password
+    if not security.verify_password(old_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Old password is incorrect"
+        )
+
+    # 🔹 3. Prevent same password reuse
+    if security.verify_password(new_password, user.password_hash):
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be different from old password"
+        )
+
+    # 🔹 4. Hash new password
+    new_hashed = security.hash_password(new_password)
+
+    # 🔹 5. Update DB
+    user.password_hash = new_hashed
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": "Password updated successfully"
     }

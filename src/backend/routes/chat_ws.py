@@ -285,7 +285,7 @@ async def chat_endpoint(websocket: WebSocket, id: int):
                         or "General Physician"
                     )
 
-                    slot_list = db_booking.build_slots(speciality, doctors)
+                    slot_list = db_booking.build_slots(speciality)
 
                     if not slot_list:
                         await websocket.send_json(

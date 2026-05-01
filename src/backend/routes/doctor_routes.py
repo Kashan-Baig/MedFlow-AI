@@ -1,4 +1,4 @@
-from datetime import date as DateType
+from datetime import date as DateType, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
@@ -14,6 +14,7 @@ from src.backend.core.middleware import (
     get_current_user,
 )
 from datetime import date
+
 
 
 router = APIRouter(prefix="/doctor", tags=["doctor"])
@@ -239,55 +240,90 @@ def get_patients_by_doctor(doctor_name: str, db: Session = Depends(get_db)):
 
 # Todo : get next month all avaiable slots
 @router.get("/available_slots")
-def get_available_slots(
-    target_date: DateType,  # e.g. ?target_date=2025-04-19
+def get_available_slots_range(
+    start_date: DateType = None,
+    end_date: DateType = None,
     db: Session = Depends(get_db),
 ):
-    """
-    Returns slots that are available for a given date:
-      1. The date's weekday must be in the slot's available_days array.
-      2. No SlotException exists for (slot_id, target_date).
-      3. booked_count < max_appointments for (slot_id, target_date).
-    """
-    day_name = target_date.strftime("%A")  # e.g. "Wednesday"
+
+    if not start_date:
+        start_date = DateType.today()
+    if not end_date:
+        end_date = start_date + timedelta(days=30)
+
+    if start_date > end_date:
+        return {
+            "status": "error",
+            "message": "start_date cannot be greater than end_date"
+        }
 
     result = db.execute(
         text(
             """
+        WITH date_series AS (
+            SELECT generate_series(:start_date, :end_date, INTERVAL '1 day')::date AS slot_date
+        )
+
         SELECT
+            ds.slot_date,
             s.slot_id,
             s.start_time,
             s.end_time,
             s.max_appointments,
-            COALESCE(sb.booked_count, 0)                        AS booked_count,
-            s.max_appointments - COALESCE(sb.booked_count, 0)   AS remaining_slots,
+
+            COALESCE(sb.booked_count, 0) AS booked_count,
+            (s.max_appointments - COALESCE(sb.booked_count, 0)) AS remaining_slots,
+
             d.doctor_id,
-            d.full_name   AS doctor_name,
+            d.full_name AS doctor_name,
             d.specialization
-        FROM slots s
-        JOIN doctors d ON s.doctor_id = d.doctor_id
-        LEFT JOIN slot_bookings sb ON s.slot_id = sb.slot_id AND sb.booking_date = :target_date
-        WHERE CAST(:day_name AS VARCHAR) = ANY(s.available_days::VARCHAR[])
-          AND NOT EXISTS (
-              SELECT 1 FROM slot_exceptions se 
-              WHERE se.slot_id = s.slot_id AND se.exception_date = :target_date
-          )
-          AND (s.max_appointments - COALESCE(sb.booked_count, 0)) > 0
-        ORDER BY s.start_time
-    """
+
+        FROM date_series ds
+
+        JOIN slots s
+            ON TO_CHAR(ds.slot_date, 'FMDay') = ANY (s.available_days::TEXT[])
+
+        JOIN doctors d
+            ON s.doctor_id = d.doctor_id
+
+        LEFT JOIN slot_bookings sb
+            ON s.slot_id = sb.slot_id
+            AND sb.booking_date = ds.slot_date
+
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM slot_exceptions se
+            WHERE se.slot_id = s.slot_id
+              AND se.exception_date = ds.slot_date
+        )
+
+        AND (s.max_appointments - COALESCE(sb.booked_count, 0)) > 0
+
+        ORDER BY ds.slot_date, s.start_time
+        """
         ),
-        {"target_date": target_date, "day_name": day_name},
+        {"start_date": start_date, "end_date": end_date},
     ).fetchall()
+
     slots = [dict(row._mapping) for row in result]
 
+    # 🔹 No data case
     if not slots:
         return {
             "status": "success",
-            "message": "No available slots for this date",
+            "message": "No available slots in this range",
             "data": [],
         }
 
-    return {"status": "success", "count": len(slots), "data": slots}
+    return {
+        "status": "success",
+        "range": {
+            "start_date": str(start_date),
+            "end_date": str(end_date),
+        },
+        "count": len(slots),
+        "data": slots,
+    }
 
 
 # ── Mark doctor leave / holiday ────────────────────────────────────────────────

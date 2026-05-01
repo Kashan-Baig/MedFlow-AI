@@ -180,7 +180,7 @@ def book_appointment(session_id, insight):
     return appointment_data
 
 
-def build_slots(speciality, doctors):
+def build_slots(speciality):
     days = [
         "Monday",
         "Tuesday",

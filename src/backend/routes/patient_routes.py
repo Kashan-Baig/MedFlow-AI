@@ -287,6 +287,93 @@ def book_appointment(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/cancel_appointment")
+def cancelAppointment(
+    appointment_id: int,
+    get_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_role = get_user.get("role")
+    if user_role != "patient" and user_role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only patients and admins can cancel appointments",
+        )
+    appointment = db.execute(
+        text("SELECT * FROM appointments WHERE appointment_id = :appointment_id"),
+        {"appointment_id": appointment_id},
+    ).fetchone()
+
+    if not appointment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Appointment not found",
+        )
+
+    if appointment.status == AppointmentStatus.CANCELLED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Appointment is already cancelled",
+        )
+
+    elif appointment.status == AppointmentStatus.COMPLETED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Appointment is already completed",
+        )
+
+    elif appointment.status == AppointmentStatus.CONFIRMED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Appointment is already confirmed and cannot be cancelled",
+        )
+
+    db.execute(
+        text(
+            "UPDATE appointments SET status = 'CANCELLED' WHERE appointment_id = :appointment_id"
+        ),
+        {"appointment_id": appointment_id},
+    )
+
+    # After setting the appointment to CANCELLED...
+
+    # Step 1: Get the cancelled appointment's queue_number and slot_booking_id
+    cancelled_queue = appointment.queue_number
+    slot_booking_id = appointment.slot_booking_id
+
+    # Step 2: Decrement booked_count in slot_bookings
+    db.execute(
+        text(
+            "UPDATE slot_bookings SET booked_count = booked_count - 1 WHERE booking_id = :booking_id"
+        ),
+        {"booking_id": slot_booking_id},
+    )
+
+    # Step 3: Shift queue numbers down for all appointments AFTER the cancelled one
+    # (only for active appointments in the same slot booking)
+    db.execute(
+        text(
+            """
+            UPDATE appointments 
+            SET queue_number = queue_number - 1 
+            WHERE slot_booking_id = :slot_booking_id 
+            AND queue_number > :cancelled_queue 
+            AND status NOT IN ('CANCELLED', 'COMPLETED')
+        """
+        ),
+        {
+            "slot_booking_id": slot_booking_id,
+            "cancelled_queue": cancelled_queue,
+        },
+    )
+
+    db.commit()
+    return {
+        "status": "success",
+        "message": "Appointment cancelled successfully",
+    }
+
+
 @router.get("/patient_history")
 def get_patient_history(patient_id: int, db: Session = Depends(get_db)):
     medical = db.execute(
@@ -333,15 +420,18 @@ def get_patient_history(patient_id: int, db: Session = Depends(get_db)):
         "total_visits": len(visiting_history),
     }
 
+
 @router.put("/change_password")
 def change_password(
     old_password: str,
     new_password: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(security.get_current_user)  # 🔐 from your JWT
+    current_user: dict = Depends(security.get_current_user),  # 🔐 from your JWT
 ):
     # 🔹 1. Get user from DB
-    user = db.query(models.User).filter(models.User.email == current_user["sub"]).first()
+    user = (
+        db.query(models.User).filter(models.User.email == current_user["sub"]).first()
+    )
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -349,15 +439,13 @@ def change_password(
     # 🔹 2. Verify old password
     if not security.verify_password(old_password, user.password_hash):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Old password is incorrect"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Old password is incorrect"
         )
 
     # 🔹 3. Prevent same password reuse
     if security.verify_password(new_password, user.password_hash):
         raise HTTPException(
-            status_code=400,
-            detail="New password must be different from old password"
+            status_code=400, detail="New password must be different from old password"
         )
 
     # 🔹 4. Hash new password
@@ -367,7 +455,4 @@ def change_password(
     user.password_hash = new_hashed
     db.commit()
 
-    return {
-        "status": "success",
-        "message": "Password updated successfully"
-    }
+    return {"status": "success", "message": "Password updated successfully"}

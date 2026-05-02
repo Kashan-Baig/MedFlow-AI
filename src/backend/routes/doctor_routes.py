@@ -369,3 +369,34 @@ def mark_leave(
         "message": f"Slot {slot_id} marked as unavailable on {exception_date} ({reason.value})",
         "exception_id": exception.exception_id,
     }
+
+@router.get("/appointments_by_doctor")
+def get_appointments_by_doctor(
+    doctor_id: int,
+    db: Session = Depends(get_db)
+):
+    result = db.execute(text("""
+        SELECT 
+            a.appointment_date,
+            d.full_name AS doctor_name,
+            a.expected_time AS time_slot
+        FROM appointments a
+        JOIN doctors d ON a.doctor_id = d.doctor_id
+        WHERE a.doctor_id = :doctor_id
+        ORDER BY a.appointment_date
+    """), {"doctor_id": doctor_id}).fetchall()
+
+    appointments = [dict(row._mapping) for row in result]
+
+    if not appointments:
+        return {
+            "status": "success",
+            "message": "No appointments found",
+            "data": []
+        }
+
+    return {
+        "status": "success",
+        "count": len(appointments),
+        "data": appointments
+    }

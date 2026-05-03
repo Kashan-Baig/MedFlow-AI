@@ -227,7 +227,6 @@ def get_patients_by_doctor(doctor_name: str, db: Session = Depends(get_db)):
     ).fetchall()
 
     patients = [dict(row._mapping) for row in result]
-
     if not patients:
         return {
             "status": "success",
@@ -238,11 +237,11 @@ def get_patients_by_doctor(doctor_name: str, db: Session = Depends(get_db)):
     return {"status": "success", "count": len(patients), "data": patients}
 
 
-# Todo : get next month all avaiable slots
 @router.get("/available_slots")
 def get_available_slots_range(
     start_date: DateType = None,
     end_date: DateType = None,
+    doctor_id: int = None,   
     db: Session = Depends(get_db),
 ):
 
@@ -299,15 +298,21 @@ def get_available_slots_range(
 
         AND (s.max_appointments - COALESCE(sb.booked_count, 0)) > 0
 
+        -- ✅ optional doctor filter
+        AND (:doctor_id IS NULL OR s.doctor_id = :doctor_id)
+
         ORDER BY ds.slot_date, s.start_time
         """
         ),
-        {"start_date": start_date, "end_date": end_date},
+        {
+            "start_date": start_date,
+            "end_date": end_date,
+            "doctor_id": doctor_id,   # ✅ pass param
+        },
     ).fetchall()
 
     slots = [dict(row._mapping) for row in result]
 
-    # 🔹 No data case
     if not slots:
         return {
             "status": "success",
@@ -324,7 +329,6 @@ def get_available_slots_range(
         "count": len(slots),
         "data": slots,
     }
-
 
 # ── Mark doctor leave / holiday ────────────────────────────────────────────────
 @router.post("/mark_leave")

@@ -369,12 +369,14 @@ async def chat_endpoint(websocket: WebSocket, id: int):
                     chosen = session["chosen_slot"]
 
                     try:
-                        appointment_id = create_appointment(
+                        appointment_data = create_appointment(
                             patient_id=session["patient_id"],
                             doctor_id=chosen["doctor_id"],
                             slot_id=chosen["slot_id"],
                             target_date=chosen["date"],
                         )
+
+                        appointment_id = appointment_data["appointment_id"]
 
                         record_id = save_consultation_record(
                             appointment_id,

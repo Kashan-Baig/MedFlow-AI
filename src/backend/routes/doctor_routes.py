@@ -154,6 +154,9 @@ def get_schedule(
         SELECT 
             a.appointment_id,
             a.appointment_date,
+            a.expected_time,
+            a.status,
+            a.case_type,
             p.full_name AS patient_name,
             d.full_name AS doctor_name
         FROM appointments a
@@ -311,7 +314,16 @@ def get_available_slots_range(
         },
     ).fetchall()
 
-    slots = [dict(row._mapping) for row in result]
+    slots = []
+    for row in result:
+        r = dict(row._mapping)
+        # Ensure date and time are strings for consistent frontend matching
+        slots.append({
+            **r,
+            "slot_date": r["slot_date"].strftime("%Y-%m-%d") if hasattr(r["slot_date"], "strftime") else str(r["slot_date"]),
+            "start_time": r["start_time"].strftime("%H:%M") if hasattr(r["start_time"], "strftime") else str(r["start_time"])[:5],
+            "end_time": r["end_time"].strftime("%H:%M") if hasattr(r["end_time"], "strftime") else str(r["end_time"])[:5]
+        })
 
     if not slots:
         return {
@@ -381,16 +393,18 @@ def get_appointments_by_doctor(
 ):
     result = db.execute(text("""
         SELECT 
+            a.appointment_id,
             a.appointment_date,
-            d.full_name AS doctor_name,
+            a.patient_id,
+            a.status,
             a.expected_time AS time_slot
         FROM appointments a
-        JOIN doctors d ON a.doctor_id = d.doctor_id
         WHERE a.doctor_id = :doctor_id
         ORDER BY a.appointment_date
     """), {"doctor_id": doctor_id}).fetchall()
 
     appointments = [dict(row._mapping) for row in result]
+
 
     if not appointments:
         return {

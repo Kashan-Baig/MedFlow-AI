@@ -92,7 +92,7 @@ def get_all_patient(
 def get_patient_full_data(
     patient_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)
 ):
-    if user.get("role") != UserRole.PATIENT and user.get("role") != UserRole.ADMIN:
+    if user.get("role") not in [UserRole.PATIENT, UserRole.ADMIN, UserRole.DOCTOR]:
         raise HTTPException(status_code=403, detail="Not authorized")
 
     patient = db.execute(

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date as DateType
 
 from sqlalchemy import text
 from src.backend.database.db_connection import get_db
@@ -165,5 +165,109 @@ def get_appointments_by_patient_id(patient_id):
         )
         result = db.execute(query, {"patient_id": patient_id}).fetchall()
         return [dict(row._mapping) for row in result]
+    finally:
+        db.close()
+
+
+# =========================
+# GET: AVAILABLE SLOTS RANGE
+# =========================
+def get_available_slots_range(
+    start_date: DateType = None, end_date: DateType = None, doctor_id: int = None
+):
+    db = get_db()
+    try:
+        if not start_date:
+            start_date = DateType.today()
+        if not end_date:
+            end_date = start_date + timedelta(days=30)
+
+        if start_date > end_date:
+            return {
+                "status": "error",
+                "message": "start_date cannot be greater than end_date",
+            }
+
+        result = db.execute(
+            text(
+                """
+            WITH date_series AS (
+                SELECT generate_series(:start_date, :end_date, INTERVAL '1 day')::date AS slot_date
+            )
+
+            SELECT
+                ds.slot_date,
+                s.slot_id,
+                s.start_time,
+                s.end_time,
+                s.max_appointments,
+
+                COALESCE(sb.booked_count, 0) AS booked_count,
+                (s.max_appointments - COALESCE(sb.booked_count, 0)) AS remaining_slots,
+
+                d.doctor_id,
+                d.full_name AS doctor_name,
+                d.specialization
+
+            FROM date_series ds
+
+            JOIN slots s
+                ON TO_CHAR(ds.slot_date, 'FMDay') = ANY (s.available_days::TEXT[])
+
+            JOIN doctors d
+                ON s.doctor_id = d.doctor_id
+
+            LEFT JOIN slot_bookings sb
+                ON s.slot_id = sb.slot_id
+                AND sb.booking_date = ds.slot_date
+
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM slot_exceptions se
+                WHERE se.slot_id = s.slot_id
+                  AND se.exception_date = ds.slot_date
+            )
+
+            AND (s.max_appointments - COALESCE(sb.booked_count, 0)) > 0
+
+            -- ✅ optional doctor filter
+            AND (:doctor_id IS NULL OR s.doctor_id = :doctor_id)
+
+            ORDER BY ds.slot_date, s.start_time
+            """
+            ),
+            {
+                "start_date": start_date,
+                "end_date": end_date,
+                "doctor_id": doctor_id,  # ✅ pass param
+            },
+        ).fetchall()
+
+        slots = []
+        for row in result:
+            r = dict(row._mapping)
+            # Ensure date and time are strings for consistent frontend matching
+            slots.append(
+                {
+                    **r,
+                    "slot_date": (
+                        r["slot_date"].strftime("%Y-%m-%d")
+                        if hasattr(r["slot_date"], "strftime")
+                        else str(r["slot_date"])
+                    ),
+                    "start_time": (
+                        r["start_time"].strftime("%H:%M")
+                        if hasattr(r["start_time"], "strftime")
+                        else str(r["start_time"])[:5]
+                    ),
+                    "end_time": (
+                        r["end_time"].strftime("%H:%M")
+                        if hasattr(r["end_time"], "strftime")
+                        else str(r["end_time"])[:5]
+                    ),
+                }
+            )
+
+        return slots
     finally:
         db.close()

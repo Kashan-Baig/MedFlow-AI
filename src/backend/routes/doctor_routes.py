@@ -6,6 +6,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from src.backend.database.db_connection import get_db
 from src.backend.database.models import Doctor, Gender, SlotException, ExceptionType
+from src.ai.db_services.appointment_db_service import (
+    get_available_slots_range as fetch_available_slots,
+)
 
 from src.backend.schemas.all_schema import DoctorUpdateSchema
 
@@ -14,7 +17,6 @@ from src.backend.core.middleware import (
     get_current_user,
 )
 from datetime import date
-
 
 
 router = APIRouter(prefix="/doctor", tags=["doctor"])
@@ -145,11 +147,9 @@ def get_all_specializations(db: Session = Depends(get_db)):
 
     return {"status": "success", "count": len(specializations), "data": specializations}
 
+
 @router.get("/schedule")
-def get_schedule(
-    target_date: Optional[date] = None,
-    db: Session = Depends(get_db)
-):
+def get_schedule(target_date: Optional[date] = None, db: Session = Depends(get_db)):
     query = """
         SELECT 
             a.appointment_id,
@@ -183,11 +183,8 @@ def get_schedule(
             "data": [],
         }
 
-    return {
-        "status": "success",
-        "count": len(schedule),
-        "data": schedule
-    }
+    return {"status": "success", "count": len(schedule), "data": schedule}
+
 
 @router.get("/doctors_by_specialization")
 def get_doctors_by_specialization(specialization: str, db: Session = Depends(get_db)):
@@ -244,87 +241,13 @@ def get_patients_by_doctor(doctor_name: str, db: Session = Depends(get_db)):
 def get_available_slots_range(
     start_date: DateType = None,
     end_date: DateType = None,
-    doctor_id: int = None,   
+    doctor_id: int = None,
     db: Session = Depends(get_db),
 ):
 
-    if not start_date:
-        start_date = DateType.today()
-    if not end_date:
-        end_date = start_date + timedelta(days=30)
-
-    if start_date > end_date:
-        return {
-            "status": "error",
-            "message": "start_date cannot be greater than end_date"
-        }
-
-    result = db.execute(
-        text(
-            """
-        WITH date_series AS (
-            SELECT generate_series(:start_date, :end_date, INTERVAL '1 day')::date AS slot_date
-        )
-
-        SELECT
-            ds.slot_date,
-            s.slot_id,
-            s.start_time,
-            s.end_time,
-            s.max_appointments,
-
-            COALESCE(sb.booked_count, 0) AS booked_count,
-            (s.max_appointments - COALESCE(sb.booked_count, 0)) AS remaining_slots,
-
-            d.doctor_id,
-            d.full_name AS doctor_name,
-            d.specialization
-
-        FROM date_series ds
-
-        JOIN slots s
-            ON TO_CHAR(ds.slot_date, 'FMDay') = ANY (s.available_days::TEXT[])
-
-        JOIN doctors d
-            ON s.doctor_id = d.doctor_id
-
-        LEFT JOIN slot_bookings sb
-            ON s.slot_id = sb.slot_id
-            AND sb.booking_date = ds.slot_date
-
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM slot_exceptions se
-            WHERE se.slot_id = s.slot_id
-              AND se.exception_date = ds.slot_date
-        )
-
-        AND (s.max_appointments - COALESCE(sb.booked_count, 0)) > 0
-
-        -- ✅ optional doctor filter
-        AND (:doctor_id IS NULL OR s.doctor_id = :doctor_id)
-
-        ORDER BY ds.slot_date, s.start_time
-        """
-        ),
-        {
-            "start_date": start_date,
-            "end_date": end_date,
-            "doctor_id": doctor_id,   # ✅ pass param
-        },
-    ).fetchall()
-
-    slots = []
-    for row in result:
-        r = dict(row._mapping)
-        # Ensure date and time are strings for consistent frontend matching
-        slots.append({
-            **r,
-            "slot_date": r["slot_date"].strftime("%Y-%m-%d") if hasattr(r["slot_date"], "strftime") else str(r["slot_date"]),
-            "start_time": r["start_time"].strftime("%H:%M") if hasattr(r["start_time"], "strftime") else str(r["start_time"])[:5],
-            "end_time": r["end_time"].strftime("%H:%M") if hasattr(r["end_time"], "strftime") else str(r["end_time"])[:5]
-        })
-
+    slots = fetch_available_slots(
+        start_date=start_date, end_date=end_date, doctor_id=doctor_id
+    )
     if not slots:
         return {
             "status": "success",
@@ -341,6 +264,7 @@ def get_available_slots_range(
         "count": len(slots),
         "data": slots,
     }
+
 
 # ── Mark doctor leave / holiday ────────────────────────────────────────────────
 @router.post("/mark_leave")
@@ -386,12 +310,12 @@ def mark_leave(
         "exception_id": exception.exception_id,
     }
 
+
 @router.get("/appointments_by_doctor")
-def get_appointments_by_doctor(
-    doctor_id: int,
-    db: Session = Depends(get_db)
-):
-    result = db.execute(text("""
+def get_appointments_by_doctor(doctor_id: int, db: Session = Depends(get_db)):
+    result = db.execute(
+        text(
+            """
         SELECT 
             a.appointment_id,
             a.appointment_date,
@@ -401,20 +325,14 @@ def get_appointments_by_doctor(
         FROM appointments a
         WHERE a.doctor_id = :doctor_id
         ORDER BY a.appointment_date
-    """), {"doctor_id": doctor_id}).fetchall()
+    """
+        ),
+        {"doctor_id": doctor_id},
+    ).fetchall()
 
     appointments = [dict(row._mapping) for row in result]
 
-
     if not appointments:
-        return {
-            "status": "success",
-            "message": "No appointments found",
-            "data": []
-        }
+        return {"status": "success", "message": "No appointments found", "data": []}
 
-    return {
-        "status": "success",
-        "count": len(appointments),
-        "data": appointments
-    }
+    return {"status": "success", "count": len(appointments), "data": appointments}

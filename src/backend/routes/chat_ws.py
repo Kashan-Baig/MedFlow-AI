@@ -1,7 +1,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from src.backend.core.enums import Step
 from src.ai.services.input_service import process_patient_input
-from datetime import datetime
+from datetime import datetime, timedelta
 from src.ai.services.insight_service import generate_insights, generate_patient_response
 from src.ai.services.rag_service import get_relevant_context
 from src.ai.utils.session_store import create_session, add_conversation, get_session
@@ -217,8 +217,9 @@ async def chat_endpoint(websocket: WebSocket, id: int):
                         timestamp=str(datetime.now()),
                     )
 
-                    print(f"[WebSocket] Insight generated successfully")
-
+                    print(
+                        f"[WebSocket] Insight generated successfully : {insight_json}"
+                    )
                     await websocket.send_json(
                         {
                             "step": Step.AWAITING_FOLLOWUP,
@@ -285,7 +286,10 @@ async def chat_endpoint(websocket: WebSocket, id: int):
                         or "General Physician"
                     )
 
-                    slot_list = db_booking.build_slots(speciality)
+                    slot_list = db_booking.build_slots(
+                        speciality,
+                        end_date=datetime.now().date() + timedelta(days=7),
+                    )
 
                     if not slot_list:
                         await websocket.send_json(

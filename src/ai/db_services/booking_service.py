@@ -180,27 +180,40 @@ def book_appointment(session_id, insight):
     return appointment_data
 
 
-def build_slots(speciality):
-    days = [
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-        "Sunday",
-    ]
+def build_slots(speciality, start_date=None, end_date=None):
+    today = datetime.now().date()
+    now = datetime.now().time()
+
+    if not start_date:
+        start_date = today
+    if not end_date:
+        end_date = start_date + timedelta(days=30)
 
     slot_list = []
     count = 1
 
     available_doctors_by_day = get_doctors_by_speciality(speciality)
 
-    for day in days:
+    current_date = start_date
+    while current_date <= end_date:
+        day = current_date.strftime("%A")  # e.g. "Monday"
         available_doctors = available_doctors_by_day.get(day, [])
 
         for doc in available_doctors:
             for i in range(len(doc["time_slots"])):
+                time_slot = doc["time_slots"][i]
+
+                # Skip slots that have already passed today
+                if current_date == today:
+                    try:
+                        # time_slot format: "09:00 AM - 11:00 AM"
+                        slot_start_str = time_slot.split(" - ")[0].strip()
+                        slot_start_time = datetime.strptime(slot_start_str, "%I:%M %p").time()
+                        if slot_start_time <= now:
+                            continue
+                    except (ValueError, IndexError):
+                        pass
+
                 slot_list.append(
                     {
                         "slot_number": count,
@@ -209,10 +222,13 @@ def build_slots(speciality):
                         "speciality": speciality,
                         "slot_id": doc["slot_ids"][i],
                         "day": day,
-                        "time_slot": doc["time_slots"][i],
-                        "date": str(get_next_date_for_day(day)),
+                        "time_slot": time_slot,
+                        "date": str(current_date),
                     }
                 )
                 count += 1
 
+        current_date += timedelta(days=1)
+
     return slot_list
+

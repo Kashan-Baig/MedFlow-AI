@@ -11,4 +11,5 @@ from src.ai.db_services.booking_service import book_appointment
 from src.ai.db_services.appointment_db_service import (
     create_appointment,
     get_appointments_by_patient_id,
+    get_available_slots_range,
 )

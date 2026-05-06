@@ -154,6 +154,9 @@ def get_schedule(
         SELECT 
             a.appointment_id,
             a.appointment_date,
+            a.expected_time,
+            a.status,
+            a.case_type,
             p.full_name AS patient_name,
             d.full_name AS doctor_name
         FROM appointments a
@@ -227,7 +230,6 @@ def get_patients_by_doctor(doctor_name: str, db: Session = Depends(get_db)):
     ).fetchall()
 
     patients = [dict(row._mapping) for row in result]
-
     if not patients:
         return {
             "status": "success",
@@ -238,11 +240,11 @@ def get_patients_by_doctor(doctor_name: str, db: Session = Depends(get_db)):
     return {"status": "success", "count": len(patients), "data": patients}
 
 
-# Todo : get next month all avaiable slots
 @router.get("/available_slots")
 def get_available_slots_range(
     start_date: DateType = None,
     end_date: DateType = None,
+    doctor_id: int = None,   
     db: Session = Depends(get_db),
 ):
 
@@ -299,15 +301,30 @@ def get_available_slots_range(
 
         AND (s.max_appointments - COALESCE(sb.booked_count, 0)) > 0
 
+        -- ✅ optional doctor filter
+        AND (:doctor_id IS NULL OR s.doctor_id = :doctor_id)
+
         ORDER BY ds.slot_date, s.start_time
         """
         ),
-        {"start_date": start_date, "end_date": end_date},
+        {
+            "start_date": start_date,
+            "end_date": end_date,
+            "doctor_id": doctor_id,   # ✅ pass param
+        },
     ).fetchall()
 
-    slots = [dict(row._mapping) for row in result]
+    slots = []
+    for row in result:
+        r = dict(row._mapping)
+        # Ensure date and time are strings for consistent frontend matching
+        slots.append({
+            **r,
+            "slot_date": r["slot_date"].strftime("%Y-%m-%d") if hasattr(r["slot_date"], "strftime") else str(r["slot_date"]),
+            "start_time": r["start_time"].strftime("%H:%M") if hasattr(r["start_time"], "strftime") else str(r["start_time"])[:5],
+            "end_time": r["end_time"].strftime("%H:%M") if hasattr(r["end_time"], "strftime") else str(r["end_time"])[:5]
+        })
 
-    # 🔹 No data case
     if not slots:
         return {
             "status": "success",
@@ -324,7 +341,6 @@ def get_available_slots_range(
         "count": len(slots),
         "data": slots,
     }
-
 
 # ── Mark doctor leave / holiday ────────────────────────────────────────────────
 @router.post("/mark_leave")
@@ -368,4 +384,37 @@ def mark_leave(
         "status": "success",
         "message": f"Slot {slot_id} marked as unavailable on {exception_date} ({reason.value})",
         "exception_id": exception.exception_id,
+    }
+
+@router.get("/appointments_by_doctor")
+def get_appointments_by_doctor(
+    doctor_id: int,
+    db: Session = Depends(get_db)
+):
+    result = db.execute(text("""
+        SELECT 
+            a.appointment_id,
+            a.appointment_date,
+            a.patient_id,
+            a.status,
+            a.expected_time AS time_slot
+        FROM appointments a
+        WHERE a.doctor_id = :doctor_id
+        ORDER BY a.appointment_date
+    """), {"doctor_id": doctor_id}).fetchall()
+
+    appointments = [dict(row._mapping) for row in result]
+
+
+    if not appointments:
+        return {
+            "status": "success",
+            "message": "No appointments found",
+            "data": []
+        }
+
+    return {
+        "status": "success",
+        "count": len(appointments),
+        "data": appointments
     }

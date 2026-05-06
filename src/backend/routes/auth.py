@@ -55,9 +55,8 @@ def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
             full_name=user_data.fullName,
         )
     db.add(new_role)
-    db.commit()
-    db.refresh(new_role)
-
+    
+    # Validate output models BEFORE committing to catch serialization errors
     user_out = schemas.UserOut.model_validate(new_user)
     if user_data.role == UserRole.PATIENT:
         role_out = schemas.PatientAuthOut.model_validate(new_role)
@@ -65,11 +64,13 @@ def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
         role_out = schemas.DoctorAuthOut.model_validate(new_role)
     else:
         role_out = schemas.AdminAuthOut.model_validate(new_role)
-    # print(f"Registered new user: {user_out} with role {role_out}")
+        
+    db.commit()
+    
     return {
         "status_code": 201,
         "message": f"A new {user_data.role.value} registered successfully",
-        "data": schemas.RegisterResponse(user=user_out, role=role_out),
+        "data": {"user": user_out, "role": role_out},
     }
 
 

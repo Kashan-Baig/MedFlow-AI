@@ -55,7 +55,14 @@ def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
             full_name=user_data.fullName,
         )
     db.add(new_role)
-    
+    # 1. Flush or Commit here so new_role gets its ID from the DB
+    db.flush()
+    # Or db.commit() if you're sure you want to save now
+
+    # 2. Now refresh to make sure the Python object sees the new ID
+    db.refresh(new_role)
+    db.refresh(new_user)
+
     # Validate output models BEFORE committing to catch serialization errors
     user_out = schemas.UserOut.model_validate(new_user)
     if user_data.role == UserRole.PATIENT:
@@ -64,9 +71,9 @@ def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
         role_out = schemas.DoctorAuthOut.model_validate(new_role)
     else:
         role_out = schemas.AdminAuthOut.model_validate(new_role)
-        
+
     db.commit()
-    
+
     return {
         "status_code": 201,
         "message": f"A new {user_data.role.value} registered successfully",
@@ -77,7 +84,9 @@ def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=schemas.GenericResponse[schemas.LoginResponse])
 def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
 
-    user = db.query(models.User).filter(models.User.email.ilike(login_data.email)).first()
+    user = (
+        db.query(models.User).filter(models.User.email.ilike(login_data.email)).first()
+    )
     if not user or not security.verify_password(
         login_data.password, user.password_hash
     ):

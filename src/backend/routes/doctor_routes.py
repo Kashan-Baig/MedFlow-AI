@@ -396,14 +396,25 @@ def get_appointments_by_doctor(
             a.appointment_id,
             a.appointment_date,
             a.patient_id,
+            p.full_name AS patient_name,
             a.status,
             a.expected_time AS time_slot
         FROM appointments a
+        LEFT JOIN patients p ON a.patient_id = p.patient_id
         WHERE a.doctor_id = :doctor_id
         ORDER BY a.appointment_date
     """), {"doctor_id": doctor_id}).fetchall()
 
-    appointments = [dict(row._mapping) for row in result]
+    appointments = []
+    for row in result:
+        appointments.append({
+            "appointment_id": row[0],
+            "appointment_date": str(row[1]),
+            "patient_id": row[2],
+            "patient_name": row[3],
+            "status": row[4],
+            "time_slot": str(row[5])
+        })
 
 
     if not appointments:
